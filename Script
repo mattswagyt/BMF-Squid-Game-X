@@ -1,0 +1,292 @@
+-- Squid Game X Script (By BMF)
+-- UI + Movement + ESP Helpers Only
+
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--------------------------------------------------
+-- UI SETUP
+--------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Name = "SquidGameX_UI"
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+MainFrame.Size = UDim2.new(0,300,0,350)
+MainFrame.Position = UDim2.new(0.5,-150,0.5,-175)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Text = "Squid Game X by BMF"
+Title.Size = UDim2.new(1,0,0,30)
+Title.BackgroundColor3 = Color3.fromRGB(45,45,45)
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = MainFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+--------------------------------------------------
+-- TOGGLE UI (DELETE KEY)
+--------------------------------------------------
+
+UIS.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == Enum.KeyCode.Delete then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+StarterGui:SetCore("SendNotification",{
+    Title="Squid Game X Loaded!",
+    Text="All features are ready.",
+    Duration=8
+})
+
+--------------------------------------------------
+-- BUTTON CREATOR
+--------------------------------------------------
+
+local function createButton(name, callback)
+    local Button = Instance.new("TextButton")
+    Button.Parent = MainFrame
+    Button.Text = name
+    Button.Size = UDim2.new(1,0,0,30)
+    Button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Button.TextColor3 = Color3.fromRGB(255,255,255)
+    Button.Font = Enum.Font.SourceSans
+    Button.TextSize = 16
+
+    Button.MouseButton1Click:Connect(function()
+        pcall(function()
+            callback(Button)
+        end)
+    end)
+end
+
+--------------------------------------------------
+-- ESP HELPERS (FULL SYSTEM)
+--------------------------------------------------
+
+local function highlightTarget(target, color)
+    if target:FindFirstChild("BMF_Highlight") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "BMF_Highlight"
+    highlight.Adornee = target
+    highlight.FillColor = color
+    highlight.OutlineColor = Color3.fromRGB(255,255,255)
+    highlight.FillTransparency = 0.5
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = target
+end
+
+local function createTracer(target, color)
+    local camera = workspace.CurrentCamera
+    local line = Drawing.new("Line")
+
+    line.Visible = true
+    line.Color = color
+    line.Thickness = 2
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if target and target:FindFirstChild("HumanoidRootPart") then
+            local hrp = target.HumanoidRootPart
+            local pos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+
+            if onScreen then
+                line.From = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y)
+                line.To = Vector2.new(pos.X, pos.Y)
+                line.Visible = true
+            else
+                line.Visible = false
+            end
+        else
+            line.Visible = false
+            connection:Disconnect()
+            line:Remove()
+        end
+    end)
+end
+
+local function createNameTag(target, text, color)
+    if target:FindFirstChild("NameTag") then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "NameTag"
+    billboard.Size = UDim2.new(0,200,0,50)
+    billboard.StudsOffset = Vector3.new(0,3,0)
+    billboard.AlwaysOnTop = true
+    billboard.MaxDistance = 500
+    billboard.Parent = target
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color
+    label.TextStrokeTransparency = 0
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSansBold
+    label.Parent = billboard
+end
+
+--------------------------------------------------
+-- BUTTONS
+--------------------------------------------------
+
+--------------------------------------------------
+-- Infinite Yield
+--------------------------------------------------
+
+createButton("Infinite Yield", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end)
+
+--------------------------------------------------
+-- Dex Explorer
+--------------------------------------------------
+
+createButton("Dex Explorer", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+end)
+
+--------------------------------------------------
+-- SHIFT TO SPEED (Hold Shift → Speed = 50)
+--------------------------------------------------
+
+local shiftSpeedEnabled = true
+local normalSpeed = 16
+local boostedSpeed = 50
+
+createButton("Shift to Speed (Hold Shift)", function()
+    shiftSpeedEnabled = not shiftSpeedEnabled
+end)
+
+UIS.InputBegan:Connect(function(input)
+    if shiftSpeedEnabled and input.KeyCode == Enum.KeyCode.LeftShift then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = boostedSpeed
+        end
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if shiftSpeedEnabled and input.KeyCode == Enum.KeyCode.LeftShift then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = normalSpeed
+        end
+    end
+end)
+
+--------------------------------------------------
+-- Q TO FLY (Piggy Style)
+--------------------------------------------------
+
+local flyEnabled = false
+local flying = false
+local flySpeed = 2
+
+createButton("Q to Fly: OFF", function(button)
+    flyEnabled = not flyEnabled
+    button.Text = flyEnabled and "Q to Fly: ON" or "Q to Fly: OFF"
+    button.TextColor3 = flyEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+local function startFly()
+    flying = true
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(1e6,1e6,1e6)
+    bv.Parent = hrp
+
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(1e6,1e6,1e6)
+    bg.Parent = hrp
+
+    while flying do
+        local cam = workspace.CurrentCamera
+        bg.CFrame = cam.CFrame
+
+        local move = Vector3.new()
+        if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then move = move - Vector3.new(0,1,0) end
+
+        bv.Velocity = move * 50
+        task.wait()
+    end
+
+    bv:Destroy()
+    bg:Destroy()
+end
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Q and flyEnabled then
+        flying = not flying
+        if flying then
+            startFly()
+        end
+    end
+end)
+
+--------------------------------------------------
+-- Q TO FLY + NOCLIP
+--------------------------------------------------
+
+local flyNoclipEnabled = false
+local noclip = false
+
+createButton("Q Fly + Noclip: OFF", function(button)
+    flyNoclipEnabled = not flyNoclipEnabled
+    button.Text = flyNoclipEnabled and "Q Fly + Noclip: ON" or "Q Fly + Noclip: OFF"
+    button.TextColor3 = flyNoclipEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+RunService.Stepped:Connect(function()
+    if noclip then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Q and flyNoclipEnabled then
+        noclip = not noclip
+        flying = not flying
+        if flying then
+            startFly()
+        end
+    end
+end)

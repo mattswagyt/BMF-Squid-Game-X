@@ -26,8 +26,8 @@ ScreenGui.Name = "SquidGameX_UI"
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-MainFrame.Size = UDim2.new(0,300,0,350)
-MainFrame.Position = UDim2.new(0.5,-150,0.5,-175)
+MainFrame.Size = UDim2.new(0,300,0,380) -- Adjusted height to accommodate the new button
+MainFrame.Position = UDim2.new(0.5,-150,0.5,-190)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -183,7 +183,6 @@ createButton("Shift to Speed: ON", function(button)
     button.Text = shiftSpeedEnabled and "Shift to Speed: ON" or "Shift to Speed: OFF"
     button.TextColor3 = shiftSpeedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
     
-    -- If disabled mid-run, return back to normal speed
     if not shiftSpeedEnabled then
         holdingShift = false
         local char = LocalPlayer.Character
@@ -193,7 +192,6 @@ createButton("Shift to Speed: ON", function(button)
     end
 end)
 
--- Tracks physical key presses
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.LeftShift then
@@ -204,7 +202,6 @@ end)
 UIS.InputEnded:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.LeftShift then
         holdingShift = false
-        -- Reset speed instantly when letting go of Shift
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
             char.Humanoid.WalkSpeed = normalSpeed
@@ -212,7 +209,6 @@ UIS.InputEnded:Connect(function(input, gp)
     end
 end)
 
--- Loop running every engine frame to constantly enforce speed over anti-cheat checks
 RunService.Heartbeat:Connect(function()
     if shiftSpeedEnabled and holdingShift then
         local char = LocalPlayer.Character
@@ -326,7 +322,6 @@ createButton("Push Everyone: OFF", function(button)
     button.TextColor3 = pushEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
--- Background loop to intercept tool activations when the button is active
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -335,12 +330,10 @@ task.spawn(function()
             if character then
                 local pushTool = character:FindFirstChild("Push")
                 if pushTool and pushTool:IsA("Tool") then
-                    -- Verify if one of the valid map folders exists
                     local isMingle = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Mingle")
                     local isRedLight = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("RedLightGreenLightLight")
                     
                     if isMingle or isRedLight then
-                        -- Check if we've already attached a trigger to this specific push tool instance
                         if not pushTool:FindFirstChild("BMF_Hooked") then
                             local hookMarker = Instance.new("BoolValue")
                             hookMarker.Name = "BMF_Hooked"
@@ -352,7 +345,6 @@ task.spawn(function()
                                 if pushRemote then
                                     for _, targetPlayer in ipairs(Players:GetPlayers()) do
                                         if targetPlayer ~= LocalPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                            -- Fire both formats (Character / Player object) so it works regardless of server validation style
                                             pcall(function() pushRemote:FireServer(targetPlayer.Character) end)
                                             pcall(function() pushRemote:FireServer(targetPlayer) end)
                                         end
@@ -360,6 +352,31 @@ task.spawn(function()
                                 end
                             end)
                         end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+--------------------------------------------------
+-- KILL EVERYONE (Remote-Vulnerability Scan)
+--------------------------------------------------
+
+createButton("Kill Everyone", function()
+    -- Scans ReplicatedStorage and the game network vectors for damage or elimination interfaces
+    for _, obj in ipairs(game:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then
+            local name = obj.Name:lower()
+            -- Matches common terminology the server-side machine uses for hazardous/elimination states
+            if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") then
+                for _, targetPlayer in ipairs(Players:GetPlayers()) do
+                    if targetPlayer ~= LocalPlayer and targetPlayer.Character then
+                        -- Exploit potential insecure validation parameters by passing various formats
+                        pcall(function() obj:FireServer(targetPlayer) end)
+                        pcall(function() obj:FireServer(targetPlayer.Character) end)
+                        pcall(function() obj:FireServer(targetPlayer.Character:FindFirstChild("Humanoid"), 100) end)
+                        pcall(function() obj:FireServer(targetPlayer.Character:FindFirstChild("Humanoid"), 0) end)
                     end
                 end
             end

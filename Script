@@ -290,3 +290,56 @@ UIS.InputBegan:Connect(function(input)
         end
     end
 end)
+
+--------------------------------------------------
+-- PUSH EVERYONE TOGGLE
+--------------------------------------------------
+
+local pushEnabled = false
+
+createButton("Push Everyone: OFF", function(button)
+    pushEnabled = not pushEnabled
+    button.Text = pushEnabled and "Push Everyone: ON" or "Push Everyone: OFF"
+    button.TextColor3 = pushEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+-- Background loop to intercept tool activations when the button is active
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if pushEnabled then
+            local character = LocalPlayer.Character
+            if character then
+                local pushTool = character:FindFirstChild("Push")
+                if pushTool and pushTool:IsA("Tool") then
+                    -- Verify if one of the valid map folders exists
+                    local isMingle = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Mingle")
+                    local isRedLight = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("RedLightGreenLightLight")
+                    
+                    if isMingle or isRedLight then
+                        -- Check if we've already attached a trigger to this specific push tool instance
+                        if not pushTool:FindFirstChild("BMF_Hooked") then
+                            local hookMarker = Instance.new("BoolValue")
+                            hookMarker.Name = "BMF_Hooked"
+                            hookMarker.Parent = pushTool
+                            
+                            pushTool.Activated:Connect(function()
+                                if not pushEnabled then return end
+                                local pushRemote = pushTool:FindFirstChildWhichIsA("RemoteEvent", true)
+                                if pushRemote then
+                                    for _, targetPlayer in ipairs(Players:GetPlayers()) do
+                                        if targetPlayer ~= LocalPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                            -- Fire both formats (Character / Player object) so it works regardless of server validation style
+                                            pcall(function() pushRemote:FireServer(targetPlayer.Character) end)
+                                            pcall(function() pushRemote:FireServer(targetPlayer) end)
+                                        end
+                                    end
+                                end
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)

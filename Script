@@ -170,31 +170,54 @@ createButton("Dex Explorer", function()
 end)
 
 --------------------------------------------------
--- SHIFT TO SPEED (Hold Shift → Speed = 50)
+-- SHIFT TO SPEED (Forces Speed to 50 every frame)
 --------------------------------------------------
 
 local shiftSpeedEnabled = true
 local normalSpeed = 16
 local boostedSpeed = 50
+local holdingShift = false
 
-createButton("Shift to Speed (Hold Shift)", function()
+createButton("Shift to Speed: ON", function(button)
     shiftSpeedEnabled = not shiftSpeedEnabled
-end)
-
-UIS.InputBegan:Connect(function(input)
-    if shiftSpeedEnabled and input.KeyCode == Enum.KeyCode.LeftShift then
+    button.Text = shiftSpeedEnabled and "Shift to Speed: ON" or "Shift to Speed: OFF"
+    button.TextColor3 = shiftSpeedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    
+    -- If disabled mid-run, return back to normal speed
+    if not shiftSpeedEnabled then
+        holdingShift = false
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid.WalkSpeed = boostedSpeed
+            char.Humanoid.WalkSpeed = normalSpeed
         end
     end
 end)
 
-UIS.InputEnded:Connect(function(input)
-    if shiftSpeedEnabled and input.KeyCode == Enum.KeyCode.LeftShift then
+-- Tracks physical key presses
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        holdingShift = true
+    end
+end)
+
+UIS.InputEnded:Connect(function(input, gp)
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        holdingShift = false
+        -- Reset speed instantly when letting go of Shift
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
             char.Humanoid.WalkSpeed = normalSpeed
+        end
+    end
+end)
+
+-- Loop running every engine frame to constantly enforce speed over anti-cheat checks
+RunService.Heartbeat:Connect(function()
+    if shiftSpeedEnabled and holdingShift then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = boostedSpeed
         end
     end
 end)

@@ -26,8 +26,8 @@ ScreenGui.Name = "SquidGameX_UI"
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-MainFrame.Size = UDim2.new(0,300,0,380) -- Adjusted height to accommodate the new button
-MainFrame.Position = UDim2.new(0.5,-150,0.5,-190)
+MainFrame.Size = UDim2.new(0,300,0,410) -- Increased height to accommodate the new button
+MainFrame.Position = UDim2.new(0.5,-150,0.5,-205)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -364,15 +364,12 @@ end)
 --------------------------------------------------
 
 createButton("Kill Everyone", function()
-    -- Scans ReplicatedStorage and the game network vectors for damage or elimination interfaces
     for _, obj in ipairs(game:GetDescendants()) do
         if obj:IsA("RemoteEvent") then
             local name = obj.Name:lower()
-            -- Matches common terminology the server-side machine uses for hazardous/elimination states
             if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") then
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
                     if targetPlayer ~= LocalPlayer and targetPlayer.Character then
-                        -- Exploit potential insecure validation parameters by passing various formats
                         pcall(function() obj:FireServer(targetPlayer) end)
                         pcall(function() obj:FireServer(targetPlayer.Character) end)
                         pcall(function() obj:FireServer(targetPlayer.Character:FindFirstChild("Humanoid"), 100) end)
@@ -380,6 +377,20 @@ createButton("Kill Everyone", function()
                     end
                 end
             end
+        end
+    end
+end)
+
+--------------------------------------------------
+-- RED LIGHT GREEN LIGHT TELEPORT
+--------------------------------------------------
+
+createButton("Red Light Green Light", function()
+    local character = LocalPlayer.Character
+    if character then
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp:IsA("BasePart") then
+            hrp.CFrame = CFrame.new(-12203, -790, -3093)
         end
     end
 end)

@@ -176,13 +176,13 @@ local function createButton(parent, name, callback)
             callback(Button)
         end)
     end)
+    return Button
 end
 
 --------------------------------------------------
 -- CORE EXPLOIT HELPER FUNCTIONS
 --------------------------------------------------
 
--- Caches valid remote events once to eliminate performance drop
 local function getKillRemotes()
     local remotes = {}
     local searched = {}
@@ -250,7 +250,6 @@ local function killEveryoneNonBlocking()
                 end
             end
             
-            -- Throttle slightly every 3 players to prevent UI freeze and memory desync
             if i % 3 == 0 then
                 task.wait(0.02)
             end
@@ -279,8 +278,10 @@ local function executePushOnTarget(targetPlayer)
 end
 
 --------------------------------------------------
--- ESP HELPERS
+-- OPTIMIZED LAG-FREE ESP SYSTEM
 --------------------------------------------------
+
+local ESP_Tracers = {}
 
 local function highlightTarget(target, color, customName)
     local hlName = customName or "BMF_Highlight"
@@ -306,55 +307,73 @@ local function removeHighlight(target, customName)
     end
 end
 
-local function createTracer(target, color)
+local function updateTracer(target, color, tagKey)
     local camera = workspace.CurrentCamera
-    local line = Drawing.new("Line")
+    if not ESP_Tracers[tagKey] then
+        local line = Drawing.new("Line")
+        line.Thickness = 2
+        ESP_Tracers[tagKey] = line
+    end
 
-    line.Visible = true
-    line.Color = color
-    line.Thickness = 2
+    local line = ESP_Tracers[tagKey]
+    if target and target:FindFirstChild("HumanoidRootPart") then
+        local hrp = target.HumanoidRootPart
+        local pos, onScreen = camera:WorldToViewportPoint(hrp.Position)
 
-    local connection
-    connection = RunService.RenderStepped:Connect(function()
-        if target and target:FindFirstChild("HumanoidRootPart") then
-            local hrp = target.HumanoidRootPart
-            local pos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-
-            if onScreen then
-                line.From = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y)
-                line.To = Vector2.new(pos.X, pos.Y)
-                line.Visible = true
-            else
-                line.Visible = false
-            end
+        if onScreen then
+            line.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+            line.To = Vector2.new(pos.X, pos.Y)
+            line.Color = color
+            line.Visible = true
         else
             line.Visible = false
-            connection:Disconnect()
-            line:Remove()
         end
-    end)
+    else
+        line.Visible = false
+    end
 end
 
-local function createNameTag(target, text, color)
-    if target:FindFirstChild("NameTag") then return end
+local function removeTracer(tagKey)
+    if ESP_Tracers[tagKey] then
+        ESP_Tracers[tagKey].Visible = false
+        ESP_Tracers[tagKey]:Remove()
+        ESP_Tracers[tagKey] = nil
+    end
+end
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "NameTag"
-    billboard.Size = UDim2.new(0,200,0,50)
-    billboard.StudsOffset = Vector3.new(0,3,0)
-    billboard.AlwaysOnTop = true
-    billboard.MaxDistance = 5000
-    billboard.Parent = target
+local function updateNameTag(target, text, color)
+    local billboard = target:FindFirstChild("NameTag")
+    if not billboard then
+        billboard = Instance.new("BillboardGui")
+        billboard.Name = "NameTag"
+        billboard.Size = UDim2.new(0,200,0,50)
+        billboard.StudsOffset = Vector3.new(0,3,0)
+        billboard.AlwaysOnTop = true
+        billboard.MaxDistance = 5000
+        billboard.Parent = target
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1,0,1,0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = color
-    label.TextStrokeTransparency = 0
-    label.TextScaled = true
-    label.Font = Enum.Font.SourceSansBold
-    label.Parent = billboard
+        local label = Instance.new("TextLabel")
+        label.Name = "TagLabel"
+        label.Size = UDim2.new(1,0,1,0)
+        label.BackgroundTransparency = 1
+        label.TextStrokeTransparency = 0
+        label.TextScaled = true
+        label.Font = Enum.Font.SourceSansBold
+        label.Parent = billboard
+    end
+
+    local label = billboard:FindFirstChild("TagLabel")
+    if label then
+        label.Text = text
+        label.TextColor3 = color
+    end
+end
+
+local function removeNameTag(target)
+    local billboard = target:FindFirstChild("NameTag")
+    if billboard then
+        billboard:Destroy()
+    end
 end
 
 --------------------------------------------------
@@ -496,25 +515,61 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
+-- CTRL TO NOCLIP
+local ctrlNoclipFeatureEnabled = false
+local ctrlNoclipActive = false
+
+createButton(LocalFrame, "CTRL to Noclip: OFF", function(button)
+    ctrlNoclipFeatureEnabled = not ctrlNoclipFeatureEnabled
+    if not ctrlNoclipFeatureEnabled then
+        ctrlNoclipActive = false
+    end
+    button.Text = ctrlNoclipFeatureEnabled and "CTRL to Noclip: ON" or "CTRL to Noclip: OFF"
+    button.TextColor3 = ctrlNoclipFeatureEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.LeftControl and ctrlNoclipFeatureEnabled then
+        ctrlNoclipActive = not ctrlNoclipActive
+    end
+end)
+
+RunService.Stepped:Connect(function()
+    if ctrlNoclipFeatureEnabled and ctrlNoclipActive and LocalPlayer.Character then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- INFINITE JUMP
+local infiniteJumpEnabled = false
+
+createButton(LocalFrame, "Infinite Jump: OFF", function(button)
+    infiniteJumpEnabled = not infiniteJumpEnabled
+    button.Text = infiniteJumpEnabled and "Infinite Jump: ON" or "Infinite Jump: OFF"
+    button.TextColor3 = infiniteJumpEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+UIS.JumpRequest:Connect(function()
+    if infiniteJumpEnabled then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChildOfClass("Humanoid") then
+            char:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+
 --------------------------------------------------
 -- PLAYERS TAB
 --------------------------------------------------
 
 local PlayersFrame = Tabs["Players_Frame"]
 
-local PlayersList = Instance.new("ScrollingFrame")
-PlayersList.Parent = PlayersFrame
-PlayersList.Size = UDim2.new(1, -20, 1, -20)
-PlayersList.Position = UDim2.new(0, 10, 0, 10)
-PlayersList.CanvasSize = UDim2.new(0, 0, 0, 0)
-PlayersList.ScrollBarThickness = 6
-PlayersList.BackgroundTransparency = 1
-
-local PlayersLayout = Instance.new("UIListLayout")
-PlayersLayout.Parent = PlayersList
-PlayersLayout.SortOrder = Enum.SortOrder.LayoutOrder
-PlayersLayout.Padding = UDim.new(0, 5)
-
+-- Attach Core System
 local attachedTarget = nil
 local attachConnection = nil
 
@@ -540,11 +595,128 @@ local function attachToPlayer(targetPlayer)
         if char and targetChar and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
             local myHRP = char.HumanoidRootPart
             local targetHRP = targetChar.HumanoidRootPart
-            local backOffset = targetHRP.CFrame * CFrame.new(0, 2, 3)
+            -- Closer back attachment offset
+            local backOffset = targetHRP.CFrame * CFrame.new(0, 0, 1.2)
             myHRP.CFrame = backOffset
         end
     end)
 end
+
+-- Random Attach Feature Controls
+local attachRandomPlayerEnabled = false
+local attachRandomBlueEnabled = false
+local attachRandomRedEnabled = false
+
+local attachRandomPlayerBtn, attachRandomBlueBtn, attachRandomRedBtn
+
+local function getRandomEligiblePlayer(teamFilter, accessoryFilter)
+    local candidates = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local isCorrectTeam = true
+            if teamFilter then
+                isCorrectTeam = plr.Team and (plr.Team.Name == teamFilter or plr.Team == Teams:FindFirstChild(teamFilter))
+            end
+
+            local hasAccessory = true
+            if accessoryFilter then
+                hasAccessory = false
+                for _, child in ipairs(plr.Character:GetChildren()) do
+                    if child:IsA("Accessory") and child.Name == accessoryFilter then
+                        hasAccessory = true
+                        break
+                    end
+                end
+            end
+
+            if isCorrectTeam and hasAccessory then
+                table.insert(candidates, plr)
+            end
+        end
+    end
+
+    if #candidates > 0 then
+        return candidates[math.random(1, #candidates)]
+    end
+    return nil
+end
+
+attachRandomPlayerBtn = createButton(PlayersFrame, "Attach to random Player: OFF", function(button)
+    attachRandomPlayerEnabled = not attachRandomPlayerEnabled
+    if attachRandomPlayerEnabled then
+        attachRandomBlueEnabled = false
+        attachRandomRedEnabled = false
+        if attachRandomBlueBtn then attachRandomBlueBtn.Text = "Attach to random Blue Player: OFF" attachRandomBlueBtn.TextColor3 = Color3.fromRGB(255,0,0) end
+        if attachRandomRedBtn then attachRandomRedBtn.Text = "Attach to random Red Player: OFF" attachRandomRedBtn.TextColor3 = Color3.fromRGB(255,0,0) end
+
+        local target = getRandomEligiblePlayer("Player", nil)
+        if target then
+            attachToPlayer(target)
+        else
+            unattachFromPlayer()
+        end
+    else
+        unattachFromPlayer()
+    end
+    button.Text = attachRandomPlayerEnabled and "Attach to random Player: ON" or "Attach to random Player: OFF"
+    button.TextColor3 = attachRandomPlayerEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+attachRandomBlueBtn = createButton(PlayersFrame, "Attach to random Blue Player: OFF", function(button)
+    attachRandomBlueEnabled = not attachRandomBlueEnabled
+    if attachRandomBlueEnabled then
+        attachRandomPlayerEnabled = false
+        attachRandomRedEnabled = false
+        if attachRandomPlayerBtn then attachRandomPlayerBtn.Text = "Attach to random Player: OFF" attachRandomPlayerBtn.TextColor3 = Color3.fromRGB(255,0,0) end
+        if attachRandomRedBtn then attachRandomRedBtn.Text = "Attach to random Red Player: OFF" attachRandomRedBtn.TextColor3 = Color3.fromRGB(255,0,0) end
+
+        local target = getRandomEligiblePlayer("Player", "Vest_blue")
+        if target then
+            attachToPlayer(target)
+        else
+            unattachFromPlayer()
+        end
+    else
+        unattachFromPlayer()
+    end
+    button.Text = attachRandomBlueEnabled and "Attach to random Blue Player: ON" or "Attach to random Blue Player: OFF"
+    button.TextColor3 = attachRandomBlueEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+attachRandomRedBtn = createButton(PlayersFrame, "Attach to random Red Player: OFF", function(button)
+    attachRandomRedEnabled = not attachRandomRedEnabled
+    if attachRandomRedEnabled then
+        attachRandomPlayerEnabled = false
+        attachRandomBlueEnabled = false
+        if attachRandomPlayerBtn then attachRandomPlayerBtn.Text = "Attach to random Player: OFF" attachRandomPlayerBtn.TextColor3 = Color3.fromRGB(255,0,0) end
+        if attachRandomBlueBtn then attachRandomBlueBtn.Text = "Attach to random Blue Player: OFF" attachRandomBlueBtn.TextColor3 = Color3.fromRGB(255,0,0) end
+
+        local target = getRandomEligiblePlayer("Player", "Vest_red")
+        if target then
+            attachToPlayer(target)
+        else
+            unattachFromPlayer()
+        end
+    else
+        unattachFromPlayer()
+    end
+    button.Text = attachRandomRedEnabled and "Attach to random Red Player: ON" or "Attach to random Red Player: OFF"
+    button.TextColor3 = attachRandomRedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+-- Scrolling Player Selection Frame
+local PlayersList = Instance.new("ScrollingFrame")
+PlayersList.Parent = PlayersFrame
+PlayersList.Size = UDim2.new(1, -20, 1, -125)
+PlayersList.Position = UDim2.new(0, 10, 0, 115)
+PlayersList.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayersList.ScrollBarThickness = 6
+PlayersList.BackgroundTransparency = 1
+
+local PlayersLayout = Instance.new("UIListLayout")
+PlayersLayout.Parent = PlayersList
+PlayersLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PlayersLayout.Padding = UDim.new(0, 5)
 
 local function buildPlayerEntry(player)
     local entry = Instance.new("Frame")
@@ -681,12 +853,20 @@ local function teleportTo(x, y, z)
     end
 end
 
+createButton(TeleportsFrame, "Lobby", function()
+    teleportTo(8038, 89, 3713)
+end)
+
 createButton(TeleportsFrame, "Coffin Room", function()
     teleportTo(8120, 82, 3578)
 end)
 
 createButton(TeleportsFrame, "RLGL", function()
     teleportTo(-12571, -790, -2900)
+end)
+
+createButton(TeleportsFrame, "Honeycomb", function()
+    teleportTo(26, 5, 3196)
 end)
 
 createButton(TeleportsFrame, "Hide and Seek Safe Area", function()
@@ -707,6 +887,10 @@ end)
 
 createButton(TeleportsFrame, "Tug of War", function()
     teleportTo(-668, 42, 2608)
+end)
+
+createButton(TeleportsFrame, "Glass Bridge", function()
+    teleportTo(1280, 102, -1089)
 end)
 
 --------------------------------------------------
@@ -754,76 +938,78 @@ createButton(ESPFrame, "Frontman ESP: OFF", function(button)
     button.TextColor3 = frontmanESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
--- Main ESP Loop
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.Character then
-                local char = plr.Character
-                
-                -- Hide & Seek ESP
-                if hideSeekESPEnabled then
-                    local teamColor = nil
-                    for _, acc in ipairs(char:GetChildren()) do
-                        if acc:IsA("Accessory") then
-                            if acc.Name == "Vest_blue" then
-                                teamColor = Color3.fromRGB(0, 0, 255)
-                            elseif acc.Name == "Vest_red" then
-                                teamColor = Color3.fromRGB(255, 0, 0)
-                            end
+-- Unified 60+ FPS ESP Render Loop
+RunService.RenderStepped:Connect(function()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local char = plr.Character
+            local tagKey = plr.Name
+
+            -- Hide & Seek ESP
+            if hideSeekESPEnabled then
+                local teamColor = nil
+                for _, acc in ipairs(char:GetChildren()) do
+                    if acc:IsA("Accessory") then
+                        if acc.Name == "Vest_blue" then
+                            teamColor = Color3.fromRGB(0, 0, 255)
+                        elseif acc.Name == "Vest_red" then
+                            teamColor = Color3.fromRGB(255, 0, 0)
                         end
                     end
-
-                    if teamColor then
-                        highlightTarget(char, teamColor, "BMF_HideSeek_Highlight")
-                        createTracer(char, teamColor)
-                        createNameTag(char, plr.Name, teamColor)
-                    end
-                else
-                    removeHighlight(char, "BMF_HideSeek_Highlight")
                 end
 
-                -- Detective ESP (Team Gold)
-                if detectiveESPEnabled then
-                    if plr.Team and (plr.Team.Name == "Detective" or plr.Team == Teams:FindFirstChild("Detective")) then
-                        highlightTarget(char, Color3.fromRGB(255, 215, 0), "BMF_Detective_Highlight")
-                        createNameTag(char, "[Detective] " .. plr.Name, Color3.fromRGB(255, 215, 0))
-                    else
-                        removeHighlight(char, "BMF_Detective_Highlight")
-                    end
+                if teamColor then
+                    highlightTarget(char, teamColor, "BMF_HideSeek_Highlight")
+                    updateTracer(char, teamColor, tagKey .. "_HideSeek")
+                    updateNameTag(char, plr.Name, teamColor)
+                else
+                    removeHighlight(char, "BMF_HideSeek_Highlight")
+                    removeTracer(tagKey .. "_HideSeek")
+                end
+            else
+                removeHighlight(char, "BMF_HideSeek_Highlight")
+                removeTracer(tagKey .. "_HideSeek")
+                removeNameTag(char)
+            end
+
+            -- Detective ESP
+            if detectiveESPEnabled then
+                if plr.Team and (plr.Team.Name == "Detective" or plr.Team == Teams:FindFirstChild("Detective")) then
+                    highlightTarget(char, Color3.fromRGB(255, 215, 0), "BMF_Detective_Highlight")
+                    updateNameTag(char, "[Detective] " .. plr.Name, Color3.fromRGB(255, 215, 0))
                 else
                     removeHighlight(char, "BMF_Detective_Highlight")
                 end
+            else
+                removeHighlight(char, "BMF_Detective_Highlight")
+            end
 
-                -- Guard ESP (Hot Pink)
-                if guardESPEnabled then
-                    if plr.Team and (plr.Team.Name == "Guard" or plr.Team == Teams:FindFirstChild("Guard")) then
-                        highlightTarget(char, Color3.fromRGB(255, 105, 180), "BMF_Guard_Highlight")
-                        createNameTag(char, "[Guard] " .. plr.Name, Color3.fromRGB(255, 105, 180))
-                    else
-                        removeHighlight(char, "BMF_Guard_Highlight")
-                    end
+            -- Guard ESP
+            if guardESPEnabled then
+                if plr.Team and (plr.Team.Name == "Guard" or plr.Team == Teams:FindFirstChild("Guard")) then
+                    highlightTarget(char, Color3.fromRGB(255, 105, 180), "BMF_Guard_Highlight")
+                    updateNameTag(char, "[Guard] " .. plr.Name, Color3.fromRGB(255, 105, 180))
                 else
                     removeHighlight(char, "BMF_Guard_Highlight")
                 end
+            else
+                removeHighlight(char, "BMF_Guard_Highlight")
+            end
 
-                -- Frontman ESP (Black)
-                if frontmanESPEnabled then
-                    local isGuard = plr.Team and (plr.Team.Name == "Guard" or plr.Team == Teams:FindFirstChild("Guard"))
-                    local hasMask = char:FindFirstChild("Armour") and char.Armour:FindFirstChild("MASK")
-                    local hasRevolver = char:FindFirstChild("Revolver") or (plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild("Revolver"))
+            -- Frontman ESP
+            if frontmanESPEnabled then
+                local isGuard = plr.Team and (plr.Team.Name == "Guard" or plr.Team == Teams:FindFirstChild("Guard"))
+                local hasMask = char:FindFirstChild("Armour") and char.Armour:FindFirstChild("MASK")
+                local hasRevolver = char:FindFirstChild("Revolver") or (plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild("Revolver"))
 
-                    if isGuard and (hasMask or hasRevolver) then
-                        highlightTarget(char, Color3.fromRGB(0, 0, 0), "BMF_Frontman_Highlight")
-                        createNameTag(char, "[FRONTMAN] " .. plr.Name, Color3.fromRGB(0, 0, 0))
-                    else
-                        removeHighlight(char, "BMF_Frontman_Highlight")
-                    end
+                if isGuard and (hasMask or hasRevolver) then
+                    highlightTarget(char, Color3.fromRGB(0, 0, 0), "BMF_Frontman_Highlight")
+                    updateNameTag(char, "[FRONTMAN] " .. plr.Name, Color3.fromRGB(0, 0, 0))
                 else
                     removeHighlight(char, "BMF_Frontman_Highlight")
                 end
-
+            else
+                removeHighlight(char, "BMF_Frontman_Highlight")
             end
         end
     end
@@ -843,7 +1029,6 @@ createButton(ProtectionsFrame, "Bypass Anticheat: OFF", function(button)
     button.TextColor3 = bypassAnticheatEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
--- Event-driven and light interval Anticheat Bypass (Lag Free)
 local function cleanAnticheatRemotes()
     if not bypassAnticheatEnabled then return end
     pcall(function()
@@ -857,7 +1042,6 @@ local function cleanAnticheatRemotes()
     end)
 end
 
--- Listen for map instances dynamically without high CPU iteration loops
 workspace.ChildAdded:Connect(function(child)
     if bypassAnticheatEnabled and (child.Name == "Map" or child.Name == "Maps") then
         task.wait(0.2)
@@ -865,7 +1049,6 @@ workspace.ChildAdded:Connect(function(child)
     end
 end)
 
--- Low overhead background checker (1s polling rate)
 task.spawn(function()
     while true do
         task.wait(1.0)
@@ -879,7 +1062,6 @@ end)
 
 local TrollingFrame = Tabs["Trolling_Frame"]
 
--- Single-click action button for Push Everyone
 createButton(TrollingFrame, "Push Everyone", function()
     task.spawn(function()
         for _, targetPlayer in ipairs(Players:GetPlayers()) do
@@ -890,7 +1072,6 @@ createButton(TrollingFrame, "Push Everyone", function()
     end)
 end)
 
--- Non-blocking single-click action button for Kill Everyone
 createButton(TrollingFrame, "Kill Everyone", function()
     killEveryoneNonBlocking()
 end)

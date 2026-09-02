@@ -563,6 +563,16 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
+-- GOD MODE (WIP TOGGLE)
+local godModeEnabled = false
+
+createButton(LocalFrame, "God Mode: OFF", function(button)
+    godModeEnabled = not godModeEnabled
+    button.Text = godModeEnabled and "God Mode: ON" or "God Mode: OFF"
+    button.TextColor3 = godModeEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    print("WIP")
+end)
+
 --------------------------------------------------
 -- PLAYERS TAB
 --------------------------------------------------
@@ -595,7 +605,6 @@ local function attachToPlayer(targetPlayer)
         if char and targetChar and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
             local myHRP = char.HumanoidRootPart
             local targetHRP = targetChar.HumanoidRootPart
-            -- Closer back attachment offset
             local backOffset = targetHRP.CFrame * CFrame.new(0, 0, 1.2)
             myHRP.CFrame = backOffset
         end
@@ -718,7 +727,28 @@ PlayersLayout.Parent = PlayersList
 PlayersLayout.SortOrder = Enum.SortOrder.LayoutOrder
 PlayersLayout.Padding = UDim.new(0, 5)
 
+local activePlayerEntries = {}
+
+local function refreshPlayersListCanvas()
+    task.wait(0.05)
+    PlayersList.CanvasSize = UDim2.new(0, 0, 0, PlayersLayout.AbsoluteContentSize.Y + 10)
+end
+
+local function removePlayerEntry(player)
+    if activePlayerEntries[player] then
+        if activePlayerEntries[player].EntryFrame then
+            activePlayerEntries[player].EntryFrame:Destroy()
+        end
+        activePlayerEntries[player] = nil
+        refreshPlayersListCanvas()
+    end
+end
+
 local function buildPlayerEntry(player)
+    if activePlayerEntries[player] then
+        removePlayerEntry(player)
+    end
+
     local entry = Instance.new("Frame")
     entry.Parent = PlayersList
     entry.Size = UDim2.new(1, -10, 0, 30)
@@ -824,12 +854,36 @@ local function buildPlayerEntry(player)
         else
             entry.Size = UDim2.new(1, -10, 0, 30)
         end
-        
-        task.wait(0.05)
-        PlayersList.CanvasSize = UDim2.new(0, 0, 0, PlayersLayout.AbsoluteContentSize.Y + 10)
+        refreshPlayersListCanvas()
     end)
 
-    PlayersList.CanvasSize = UDim2.new(0, 0, 0, PlayersLayout.AbsoluteContentSize.Y + 10)
+    activePlayerEntries[player] = {
+        EntryFrame = entry
+    }
+
+    -- Character death monitoring for auto-purge
+    local function monitorCharacter(char)
+        if char then
+            local hum = char:WaitForChild("Humanoid", 5)
+            if hum then
+                hum.Died:Connect(function()
+                    task.wait(1)
+                    if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+                        removePlayerEntry(player)
+                    end
+                end)
+            end
+        end
+    end
+
+    if player.Character then
+        monitorCharacter(player.Character)
+    end
+    player.CharacterAdded:Connect(function(newChar)
+        buildPlayerEntry(player)
+    end)
+
+    refreshPlayersListCanvas()
 end
 
 for _, plr in ipairs(Players:GetPlayers()) do
@@ -838,6 +892,13 @@ end
 
 Players.PlayerAdded:Connect(function(plr)
     buildPlayerEntry(plr)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    removePlayerEntry(plr)
+    if attachedTarget == plr then
+        unattachFromPlayer()
+    end
 end)
 
 --------------------------------------------------
@@ -853,12 +914,24 @@ local function teleportTo(x, y, z)
     end
 end
 
-createButton(TeleportsFrame, "Lobby", function()
-    teleportTo(8038, 89, 3713)
-end)
-
 createButton(TeleportsFrame, "Coffin Room", function()
     teleportTo(8120, 82, 3578)
+end)
+
+createButton(TeleportsFrame, "Facility", function()
+    teleportTo(-1992, -860, 15907)
+end)
+
+createButton(TeleportsFrame, "Island", function()
+    teleportTo(-2273, -786, 15728)
+end)
+
+createButton(TeleportsFrame, "Boats", function()
+    teleportTo(-2914, -786, 15470)
+end)
+
+createButton(TeleportsFrame, "Lobby", function()
+    teleportTo(8038, 89, 3713)
 end)
 
 createButton(TeleportsFrame, "RLGL", function()
@@ -869,12 +942,24 @@ createButton(TeleportsFrame, "Honeycomb", function()
     teleportTo(26, 5, 3196)
 end)
 
+createButton(TeleportsFrame, "Pentahlon", function()
+    teleportTo(-2575, 15, -4914)
+end)
+
 createButton(TeleportsFrame, "Hide and Seek Safe Area", function()
     teleportTo(-640, 183, 406)
 end)
 
 createButton(TeleportsFrame, "Hide and Seek", function()
     teleportTo(-793, 8, 339)
+end)
+
+createButton(TeleportsFrame, "Mingle", function()
+    teleportTo(-805, 35, 1570)
+end)
+
+createButton(TeleportsFrame, "Frontman Office", function()
+    teleportTo(7961, 112, 3669)
 end)
 
 createButton(TeleportsFrame, "Frontman Door", function()
@@ -900,7 +985,28 @@ end)
 local AutoWinFrame = Tabs["Auto Win_Frame"]
 
 createButton(AutoWinFrame, "Instant RLGL", function()
-    teleportTo(-12198, -790, -3060)
+    task.spawn(function()
+        teleportTo(-12496, -790, -3000)
+        task.wait(3)
+        teleportTo(-12198, -790, -3060)
+    end)
+end)
+
+createButton(AutoWinFrame, "Instant Jumprope", function()
+    task.spawn(function()
+        pcall(function()
+            if workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("JumpRope") and workspace.Map.JumpRope:FindFirstChild("Rope") then
+                workspace.Map.JumpRope.Rope:Destroy()
+            end
+            if ReplicatedStorage:FindFirstChild("Maps") and ReplicatedStorage.Maps:FindFirstChild("JumpRope") and ReplicatedStorage.Maps.JumpRope:FindFirstChild("Rope") then
+                ReplicatedStorage.Maps.JumpRope.Rope:Destroy()
+            end
+        end)
+        
+        teleportTo(78, 120, -8)
+        task.wait(3)
+        teleportTo(-42, 127, -7)
+    end)
 end)
 
 --------------------------------------------------
@@ -1032,11 +1138,43 @@ end)
 local function cleanAnticheatRemotes()
     if not bypassAnticheatEnabled then return end
     pcall(function()
+        -- RLGL Remotes
         local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Maps")
         if map then
             local rlgl = map:FindFirstChild("RedLightGreenLight") or map:FindFirstChild("RedLightGreenLightLight")
             if rlgl and rlgl:FindFirstChild("Remotes") then
                 rlgl.Remotes:Destroy()
+            end
+            
+            -- Stage KillSecures & TouchZones
+            if map:FindFirstChild("Glass") and map.Glass:FindFirstChild("Map") and map.Glass.Map:FindFirstChild("KillSecure") then
+                map.Glass.Map.KillSecure:Destroy()
+            end
+            if map:FindFirstChild("JumpRope") and map.JumpRope:FindFirstChild("KillSecure") then
+                map.JumpRope.KillSecure:Destroy()
+            end
+            if map:FindFirstChild("SkySquid") and map.SkySquid:FindFirstChild("KillSecure") then
+                map.SkySquid.KillSecure:Destroy()
+            end
+            if map:FindFirstChild("SquidGame") and map.SquidGame:FindFirstChild("TouchZone") then
+                map.SquidGame.TouchZone:Destroy()
+            end
+        end
+
+        -- ReplicatedStorage KillSecures
+        if ReplicatedStorage:FindFirstChild("Maps") then
+            local rsMaps = ReplicatedStorage.Maps
+            if rsMaps:FindFirstChild("Glass") and rsMaps.Glass:FindFirstChild("Map") and rsMaps.Glass.Map:FindFirstChild("KillSecure") then
+                rsMaps.Glass.Map.KillSecure:Destroy()
+            end
+            if rsMaps:FindFirstChild("JumpRope") and rsMaps.JumpRope:FindFirstChild("KillSecure") then
+                rsMaps.JumpRope.KillSecure:Destroy()
+            end
+            if rsMaps:FindFirstChild("SkySquid") and rsMaps.SkySquid:FindFirstChild("KillSecure") then
+                rsMaps.SkySquid.KillSecure:Destroy()
+            end
+            if rsMaps:FindFirstChild("SquidGame") and rsMaps.SquidGame:FindFirstChild("TouchZone") then
+                rsMaps.SquidGame.TouchZone:Destroy()
             end
         end
     end)

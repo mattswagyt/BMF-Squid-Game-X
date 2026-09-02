@@ -27,8 +27,8 @@ ScreenGui.Name = "SquidGameX_UI"
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(120, 0, 0) -- Crimson moon red
-MainFrame.Size = UDim2.new(0, 700, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -350, 0.5, -250)
+MainFrame.Size = UDim2.new(0, 700, 0, 540)
+MainFrame.Position = UDim2.new(0.5, -350, 0.5, -270)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -47,22 +47,22 @@ local VersionLabel = Instance.new("TextLabel")
 VersionLabel.Parent = MainFrame
 VersionLabel.Text = "V1.1"
 VersionLabel.Size = UDim2.new(0, 150, 0, 20)
-VersionLabel.AnchorPoint = Vector2.new(1, 1)
-VersionLabel.Position = UDim2.new(1, -10, 1, -25)
+VersionLabel.AnchorPoint = Vector2.new(0, 1)
+VersionLabel.Position = UDim2.new(0, 15, 1, -10)
 VersionLabel.BackgroundTransparency = 1
 VersionLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
 VersionLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
 VersionLabel.TextStrokeTransparency = 0
 VersionLabel.Font = Enum.Font.SourceSansBold
 VersionLabel.TextSize = 16
-VersionLabel.TextXAlignment = Enum.TextXAlignment.Right
+VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local MadeByLabel = Instance.new("TextLabel")
 MadeByLabel.Parent = MainFrame
 MadeByLabel.Text = "Made by BMF!"
 MadeByLabel.Size = UDim2.new(0, 150, 0, 20)
 MadeByLabel.AnchorPoint = Vector2.new(1, 1)
-MadeByLabel.Position = UDim2.new(1, -10, 1, -5)
+MadeByLabel.Position = UDim2.new(1, -15, 1, -10)
 MadeByLabel.BackgroundTransparency = 1
 MadeByLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
 MadeByLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
@@ -87,7 +87,7 @@ TabsLayout.Padding = UDim.new(0, 5)
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Parent = MainFrame
 ContentFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 0)
-ContentFrame.Size = UDim2.new(1, -20, 1, -110)
+ContentFrame.Size = UDim2.new(1, -20, 1, -140)
 ContentFrame.Position = UDim2.new(0, 10, 0, 100)
 
 local function createTab(name)

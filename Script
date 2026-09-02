@@ -182,30 +182,80 @@ end
 -- CORE EXPLOIT HELPER FUNCTIONS
 --------------------------------------------------
 
-local function eliminatePlayer(targetPlayer)
-    if not targetPlayer or not targetPlayer.Character then return end
-    local character = targetPlayer.Character
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    
-    if character and humanoid then
-        -- 1. Client-side state override attempt
-        pcall(function()
-            humanoid.Health = 0
-        end)
-        
-        -- 2. Server Remote Execution scan
-        for _, obj in ipairs(game:GetDescendants()) do
+-- Caches valid remote events once to eliminate performance drop
+local function getKillRemotes()
+    local remotes = {}
+    local searched = {}
+
+    local function scanFolder(container)
+        if not container or searched[container] then return end
+        searched[container] = true
+        for _, obj in ipairs(container:GetChildren()) do
             if obj:IsA("RemoteEvent") then
                 local name = obj.Name:lower()
-                if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") then
-                    pcall(function() obj:FireServer(targetPlayer) end)
-                    pcall(function() obj:FireServer(character) end)
-                    pcall(function() obj:FireServer(humanoid, 100) end)
-                    pcall(function() obj:FireServer(humanoid, 0) end)
+                if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") or name:find("hit") then
+                    table.insert(remotes, obj)
                 end
+            elseif obj:IsA("Folder") or obj:IsA("Model") then
+                scanFolder(obj)
             end
         end
     end
+
+    scanFolder(ReplicatedStorage)
+    local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Maps")
+    if map then scanFolder(map) end
+
+    return remotes
+end
+
+local function eliminatePlayer(targetPlayer)
+    if not targetPlayer or targetPlayer == LocalPlayer or not targetPlayer.Character then return end
+    
+    task.defer(function()
+        local character = targetPlayer.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        
+        if character and humanoid then
+            local remotes = getKillRemotes()
+            for _, remote in ipairs(remotes) do
+                pcall(function() remote:FireServer(targetPlayer) end)
+                pcall(function() remote:FireServer(character) end)
+                pcall(function() remote:FireServer(humanoid, 100) end)
+            end
+        end
+    end)
+end
+
+local function killEveryoneNonBlocking()
+    task.spawn(function()
+        local targets = {}
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                table.insert(targets, plr)
+            end
+        end
+
+        local remotes = getKillRemotes()
+        
+        for i, targetPlayer in ipairs(targets) do
+            if targetPlayer and targetPlayer.Character then
+                local character = targetPlayer.Character
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                
+                for _, remote in ipairs(remotes) do
+                    pcall(function() remote:FireServer(targetPlayer) end)
+                    pcall(function() remote:FireServer(character) end)
+                    pcall(function() remote:FireServer(humanoid, 100) end)
+                end
+            end
+            
+            -- Throttle slightly every 3 players to prevent UI freeze and memory desync
+            if i % 3 == 0 then
+                task.wait(0.02)
+            end
+        end
+    end)
 end
 
 local function executePushOnTarget(targetPlayer)
@@ -213,7 +263,6 @@ local function executePushOnTarget(targetPlayer)
     local localChar = LocalPlayer.Character
     if not localChar then return end
 
-    -- Locate Push Tool in Character or Backpack
     local pushTool = localChar:FindFirstChild("Push") or LocalPlayer.Backpack:FindFirstChild("Push")
     if pushTool and pushTool:IsA("Tool") then
         local pushRemote = pushTool:FindFirstChildWhichIsA("RemoteEvent", true)
@@ -243,7 +292,7 @@ local function highlightTarget(target, color, customName)
         highlight.OutlineColor = Color3.fromRGB(255,255,255)
         highlight.FillTransparency = 0.4
         highlight.OutlineTransparency = 0
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Always visible through walls
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         highlight.Parent = target
     end
     highlight.FillColor = color
@@ -478,7 +527,6 @@ local function unattachFromPlayer()
 end
 
 local function attachToPlayer(targetPlayer)
-    -- Fully clean up existing connection state before binding
     unattachFromPlayer()
 
     attachedTarget = targetPlayer
@@ -795,28 +843,33 @@ createButton(ProtectionsFrame, "Bypass Anticheat: OFF", function(button)
     button.TextColor3 = bypassAnticheatEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
--- Constant Active Anticheat Bypass Loop
+-- Event-driven and light interval Anticheat Bypass (Lag Free)
+local function cleanAnticheatRemotes()
+    if not bypassAnticheatEnabled then return end
+    pcall(function()
+        local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Maps")
+        if map then
+            local rlgl = map:FindFirstChild("RedLightGreenLight") or map:FindFirstChild("RedLightGreenLightLight")
+            if rlgl and rlgl:FindFirstChild("Remotes") then
+                rlgl.Remotes:Destroy()
+            end
+        end
+    end)
+end
+
+-- Listen for map instances dynamically without high CPU iteration loops
+workspace.ChildAdded:Connect(function(child)
+    if bypassAnticheatEnabled and (child.Name == "Map" or child.Name == "Maps") then
+        task.wait(0.2)
+        cleanAnticheatRemotes()
+    end
+end)
+
+-- Low overhead background checker (1s polling rate)
 task.spawn(function()
     while true do
-        task.wait(0.1)
-        if bypassAnticheatEnabled then
-            pcall(function()
-                local map = workspace:FindFirstChild("Map")
-                if map and map:FindFirstChild("RedLightGreenLight") and map.RedLightGreenLight:FindFirstChild("Remotes") then
-                    map.RedLightGreenLight.Remotes:Destroy()
-                end
-                
-                -- Neutralize client detector remotes globally
-                for _, obj in ipairs(game:GetDescendants()) do
-                    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                        local name = obj.Name:lower()
-                        if name:find("anticheat") or name:find("ban") or name:find("check") or name:find("detector") then
-                            obj:Destroy()
-                        end
-                    end
-                end
-            end)
-        end
+        task.wait(1.0)
+        cleanAnticheatRemotes()
     end
 end)
 
@@ -826,33 +879,20 @@ end)
 
 local TrollingFrame = Tabs["Trolling_Frame"]
 
-local pushEnabled = false
-
-createButton(TrollingFrame, "Push Everyone: OFF", function(button)
-    pushEnabled = not pushEnabled
-    button.Text = pushEnabled and "Push Everyone: ON" or "Push Everyone: OFF"
-    button.TextColor3 = pushEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if pushEnabled then
-            for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                if targetPlayer ~= LocalPlayer then
-                    executePushOnTarget(targetPlayer)
-                end
+-- Single-click action button for Push Everyone
+createButton(TrollingFrame, "Push Everyone", function()
+    task.spawn(function()
+        for _, targetPlayer in ipairs(Players:GetPlayers()) do
+            if targetPlayer ~= LocalPlayer then
+                executePushOnTarget(targetPlayer)
             end
         end
-    end
+    end)
 end)
 
+-- Non-blocking single-click action button for Kill Everyone
 createButton(TrollingFrame, "Kill Everyone", function()
-    for _, targetPlayer in ipairs(Players:GetPlayers()) do
-        if targetPlayer ~= LocalPlayer then
-            eliminatePlayer(targetPlayer)
-        end
-    end
+    killEveryoneNonBlocking()
 end)
 
 --------------------------------------------------

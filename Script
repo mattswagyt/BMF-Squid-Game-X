@@ -27,8 +27,8 @@ ScreenGui.Name = "SquidGameX_UI"
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(120, 0, 0) -- Crimson moon red
-MainFrame.Size = UDim2.new(0, 700, 0, 450)
-MainFrame.Position = UDim2.new(0.5, -350, 0.5, -225)
+MainFrame.Size = UDim2.new(0, 700, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -350, 0.5, -250)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -46,26 +46,30 @@ Title.TextSize = 28
 local VersionLabel = Instance.new("TextLabel")
 VersionLabel.Parent = MainFrame
 VersionLabel.Text = "V1.1"
-VersionLabel.Size = UDim2.new(0, 100, 0, 25)
-VersionLabel.Position = UDim2.new(0, 5, 1, -30)
+VersionLabel.Size = UDim2.new(0, 150, 0, 20)
+VersionLabel.AnchorPoint = Vector2.new(1, 1)
+VersionLabel.Position = UDim2.new(1, -10, 1, -25)
 VersionLabel.BackgroundTransparency = 1
 VersionLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
 VersionLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
 VersionLabel.TextStrokeTransparency = 0
 VersionLabel.Font = Enum.Font.SourceSansBold
-VersionLabel.TextSize = 18
+VersionLabel.TextSize = 16
+VersionLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 local MadeByLabel = Instance.new("TextLabel")
 MadeByLabel.Parent = MainFrame
 MadeByLabel.Text = "Made by BMF!"
-MadeByLabel.Size = UDim2.new(0, 150, 0, 25)
-MadeByLabel.Position = UDim2.new(1, -155, 1, -30)
+MadeByLabel.Size = UDim2.new(0, 150, 0, 20)
+MadeByLabel.AnchorPoint = Vector2.new(1, 1)
+MadeByLabel.Position = UDim2.new(1, -10, 1, -5)
 MadeByLabel.BackgroundTransparency = 1
 MadeByLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
 MadeByLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
 MadeByLabel.TextStrokeTransparency = 0
 MadeByLabel.Font = Enum.Font.SourceSansBold
-MadeByLabel.TextSize = 18
+MadeByLabel.TextSize = 16
+MadeByLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 local TabsFrame = Instance.new("Frame")
 TabsFrame.Parent = MainFrame
@@ -432,9 +436,21 @@ local function buildPlayerEntry(player)
     entry.Parent = PlayersList
     entry.Size = UDim2.new(1, -10, 0, 30)
     entry.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+    entry.ClipsDescendants = true
+
+    local entryLayout = Instance.new("UIListLayout")
+    entryLayout.Parent = entry
+    entryLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    entryLayout.Padding = UDim.new(0, 2)
+
+    local headerFrame = Instance.new("Frame")
+    headerFrame.Parent = entry
+    headerFrame.Size = UDim2.new(1, 0, 0, 30)
+    headerFrame.BackgroundTransparency = 1
+    headerFrame.LayoutOrder = 1
 
     local nameLabel = Instance.new("TextLabel")
-    nameLabel.Parent = entry
+    nameLabel.Parent = headerFrame
     nameLabel.Size = UDim2.new(0.7, 0, 1, 0)
     nameLabel.Position = UDim2.new(0, 5, 0, 0)
     nameLabel.BackgroundTransparency = 1
@@ -445,9 +461,9 @@ local function buildPlayerEntry(player)
     nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 
     local arrowButton = Instance.new("TextButton")
-    arrowButton.Parent = entry
+    arrowButton.Parent = headerFrame
     arrowButton.Size = UDim2.new(0.1, 0, 1, 0)
-    arrowButton.Position = UDim2.new(0.8, 0, 0, 0)
+    arrowButton.Position = UDim2.new(0.85, 0, 0, 0)
     arrowButton.BackgroundColor3 = Color3.fromRGB(60, 0, 0)
     arrowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     arrowButton.Font = Enum.Font.SourceSansBold
@@ -456,10 +472,10 @@ local function buildPlayerEntry(player)
 
     local optionsFrame = Instance.new("Frame")
     optionsFrame.Parent = entry
-    optionsFrame.Size = UDim2.new(1, -10, 0, 120)
-    optionsFrame.Position = UDim2.new(0, 5, 1, 0)
+    optionsFrame.Size = UDim2.new(1, 0, 0, 150)
     optionsFrame.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
     optionsFrame.Visible = false
+    optionsFrame.LayoutOrder = 2
 
     local optLayout = Instance.new("UIListLayout")
     optLayout.Parent = optionsFrame
@@ -469,6 +485,7 @@ local function buildPlayerEntry(player)
         local btn = Instance.new("TextButton")
         btn.Parent = optionsFrame
         btn.Size = UDim2.new(1, -10, 0, 25)
+        btn.Position = UDim2.new(0, 5, 0, 0)
         btn.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
         btn.Font = Enum.Font.SourceSans
@@ -539,6 +556,14 @@ local function buildPlayerEntry(player)
     arrowButton.MouseButton1Click:Connect(function()
         optionsFrame.Visible = not optionsFrame.Visible
         arrowButton.Text = optionsFrame.Visible and "v" or ">"
+        
+        if optionsFrame.Visible then
+            entry.Size = UDim2.new(1, -10, 0, 185)
+        else
+            entry.Size = UDim2.new(1, -10, 0, 30)
+        end
+        
+        task.wait(0.05)
         PlayersList.CanvasSize = UDim2.new(0, 0, 0, PlayersLayout.AbsoluteContentSize.Y + 10)
     end)
 

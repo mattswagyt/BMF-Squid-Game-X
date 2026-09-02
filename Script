@@ -1,5 +1,5 @@
 -- Squid Game X Script (By BMF)
--- UI + Movement + ESP Helpers Only
+-- BMF Hub - Squid Games X
 
 --------------------------------------------------
 -- SERVICES
@@ -10,6 +10,7 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -25,24 +26,114 @@ ScreenGui.Name = "SquidGameX_UI"
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-MainFrame.Size = UDim2.new(0,300,0,410) -- Increased height to accommodate the new button
-MainFrame.Position = UDim2.new(0.5,-150,0.5,-205)
+MainFrame.BackgroundColor3 = Color3.fromRGB(120, 0, 0) -- Crimson moon red
+MainFrame.Size = UDim2.new(0, 700, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -350, 0.5, -225)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
-Title.Text = "Squid Game X by BMF"
-Title.Size = UDim2.new(1,0,0,30)
-Title.BackgroundColor3 = Color3.fromRGB(45,45,45)
-Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Text = "BMF Hub - Squid Games X"
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundTransparency = 1
+Title.TextColor3 = Color3.fromRGB(0, 0, 0)
+Title.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+Title.TextStrokeTransparency = 0
 Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 18
+Title.TextSize = 28
 
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = MainFrame
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local VersionLabel = Instance.new("TextLabel")
+VersionLabel.Parent = MainFrame
+VersionLabel.Text = "V1.1"
+VersionLabel.Size = UDim2.new(0, 100, 0, 25)
+VersionLabel.Position = UDim2.new(0, 5, 1, -30)
+VersionLabel.BackgroundTransparency = 1
+VersionLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+VersionLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+VersionLabel.TextStrokeTransparency = 0
+VersionLabel.Font = Enum.Font.SourceSansBold
+VersionLabel.TextSize = 18
+
+local MadeByLabel = Instance.new("TextLabel")
+MadeByLabel.Parent = MainFrame
+MadeByLabel.Text = "Made by BMF!"
+MadeByLabel.Size = UDim2.new(0, 150, 0, 25)
+MadeByLabel.Position = UDim2.new(1, -155, 1, -30)
+MadeByLabel.BackgroundTransparency = 1
+MadeByLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+MadeByLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+MadeByLabel.TextStrokeTransparency = 0
+MadeByLabel.Font = Enum.Font.SourceSansBold
+MadeByLabel.TextSize = 18
+
+local TabsFrame = Instance.new("Frame")
+TabsFrame.Parent = MainFrame
+TabsFrame.BackgroundTransparency = 1
+TabsFrame.Size = UDim2.new(1, -20, 0, 40)
+TabsFrame.Position = UDim2.new(0, 10, 0, 55)
+
+local TabsLayout = Instance.new("UIListLayout")
+TabsLayout.Parent = TabsFrame
+TabsLayout.FillDirection = Enum.FillDirection.Horizontal
+TabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+TabsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+TabsLayout.Padding = UDim.new(0, 5)
+
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Parent = MainFrame
+ContentFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 0)
+ContentFrame.Size = UDim2.new(1, -20, 1, -110)
+ContentFrame.Position = UDim2.new(0, 10, 0, 100)
+
+local function createTab(name)
+    local btn = Instance.new("TextButton")
+    btn.Parent = TabsFrame
+    btn.Text = name
+    btn.Size = UDim2.new(0, 80, 1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 0, 0)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+
+    local frame = Instance.new("Frame")
+    frame.Parent = ContentFrame
+    frame.BackgroundTransparency = 1
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.Visible = false
+
+    return btn, frame
+end
+
+local Tabs = {}
+
+Tabs["Local Player"], Tabs["Local Player_Frame"] = createTab("Local Player")
+Tabs["Players"], Tabs["Players_Frame"] = createTab("Players")
+Tabs["Teleports"], Tabs["Teleports_Frame"] = createTab("Teleports")
+Tabs["Auto Win"], Tabs["Auto Win_Frame"] = createTab("Auto Win")
+Tabs["ESP"], Tabs["ESP_Frame"] = createTab("ESP")
+Tabs["Protections"], Tabs["Protections_Frame"] = createTab("Protections")
+Tabs["Trolling"], Tabs["Trolling_Frame"] = createTab("Trolling")
+Tabs["Scripts"], Tabs["Scripts_Frame"] = createTab("Scripts")
+
+local function setActiveTab(tabName)
+    for name, btn in pairs(Tabs) do
+        if name:find("_Frame") then
+            Tabs[name].Visible = false
+        end
+    end
+    Tabs[tabName .. "_Frame"].Visible = true
+end
+
+setActiveTab("Local Player")
+
+for name, btn in pairs(Tabs) do
+    if not name:find("_Frame") then
+        btn.MouseButton1Click:Connect(function()
+            setActiveTab(name)
+        end)
+    end
+end
 
 --------------------------------------------------
 -- TOGGLE UI (DELETE KEY)
@@ -56,21 +147,22 @@ end)
 
 StarterGui:SetCore("SendNotification",{
     Title="Squid Game X Loaded!",
-    Text="All features are ready.",
+    Text="BMF Hub - Squid Games X ready.",
     Duration=8
 })
 
 --------------------------------------------------
--- BUTTON CREATOR
+-- BUTTON CREATOR (PER-TAB)
 --------------------------------------------------
 
-local function createButton(name, callback)
+local function createButton(parent, name, callback)
     local Button = Instance.new("TextButton")
-    Button.Parent = MainFrame
+    Button.Parent = parent
     Button.Text = name
-    Button.Size = UDim2.new(1,0,0,30)
-    Button.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    Button.TextColor3 = Color3.fromRGB(255,255,255)
+    Button.Size = UDim2.new(1, -20, 0, 30)
+    Button.Position = UDim2.new(0, 10, 0, (#parent:GetChildren() - 1) * 35)
+    Button.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
     Button.Font = Enum.Font.SourceSans
     Button.TextSize = 16
 
@@ -82,7 +174,7 @@ local function createButton(name, callback)
 end
 
 --------------------------------------------------
--- ESP HELPERS (FULL SYSTEM)
+-- ESP HELPERS
 --------------------------------------------------
 
 local function highlightTarget(target, color)
@@ -150,39 +242,22 @@ local function createNameTag(target, text, color)
 end
 
 --------------------------------------------------
--- BUTTONS
+-- LOCAL PLAYER TAB
 --------------------------------------------------
 
---------------------------------------------------
--- Infinite Yield
---------------------------------------------------
+local LocalFrame = Tabs["Local Player_Frame"]
 
-createButton("Infinite Yield", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
-end)
-
---------------------------------------------------
--- Dex Explorer
---------------------------------------------------
-
-createButton("Dex Explorer", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
-end)
-
---------------------------------------------------
--- SHIFT TO SPEED (Forces Speed to 50 every frame)
---------------------------------------------------
-
+-- SHIFT TO SPEED
 local shiftSpeedEnabled = true
 local normalSpeed = 16
 local boostedSpeed = 50
 local holdingShift = false
 
-createButton("Shift to Speed: ON", function(button)
+createButton(LocalFrame, "Shift to Speed: ON", function(button)
     shiftSpeedEnabled = not shiftSpeedEnabled
     button.Text = shiftSpeedEnabled and "Shift to Speed: ON" or "Shift to Speed: OFF"
     button.TextColor3 = shiftSpeedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-    
+
     if not shiftSpeedEnabled then
         holdingShift = false
         local char = LocalPlayer.Character
@@ -218,15 +293,11 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
---------------------------------------------------
--- Q TO FLY (Piggy Style)
---------------------------------------------------
-
+-- Q TO FLY
 local flyEnabled = false
 local flying = false
-local flySpeed = 2
 
-createButton("Q to Fly: OFF", function(button)
+createButton(LocalFrame, "Q to Fly: OFF", function(button)
     flyEnabled = not flyEnabled
     button.Text = flyEnabled and "Q to Fly: ON" or "Q to Fly: OFF"
     button.TextColor3 = flyEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -277,21 +348,18 @@ UIS.InputBegan:Connect(function(input)
     end
 end)
 
---------------------------------------------------
 -- Q TO FLY + NOCLIP
---------------------------------------------------
-
 local flyNoclipEnabled = false
 local noclip = false
 
-createButton("Q Fly + Noclip: OFF", function(button)
+createButton(LocalFrame, "Q Fly + Noclip: OFF", function(button)
     flyNoclipEnabled = not flyNoclipEnabled
     button.Text = flyNoclipEnabled and "Q Fly + Noclip: ON" or "Q Fly + Noclip: OFF"
     button.TextColor3 = flyNoclipEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
 RunService.Stepped:Connect(function()
-    if noclip then
+    if noclip and LocalPlayer.Character then
         for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
@@ -311,12 +379,297 @@ UIS.InputBegan:Connect(function(input)
 end)
 
 --------------------------------------------------
--- PUSH EVERYONE TOGGLE
+-- PLAYERS TAB
 --------------------------------------------------
+
+local PlayersFrame = Tabs["Players_Frame"]
+
+local PlayersList = Instance.new("ScrollingFrame")
+PlayersList.Parent = PlayersFrame
+PlayersList.Size = UDim2.new(1, -20, 1, -20)
+PlayersList.Position = UDim2.new(0, 10, 0, 10)
+PlayersList.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayersList.ScrollBarThickness = 6
+PlayersList.BackgroundTransparency = 1
+
+local PlayersLayout = Instance.new("UIListLayout")
+PlayersLayout.Parent = PlayersList
+PlayersLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PlayersLayout.Padding = UDim.new(0, 5)
+
+local attachedTarget = nil
+local attachConnection = nil
+
+local function attachToPlayer(targetPlayer)
+    attachedTarget = targetPlayer
+    if attachConnection then
+        attachConnection:Disconnect()
+        attachConnection = nil
+    end
+
+    attachConnection = RunService.Heartbeat:Connect(function()
+        local char = LocalPlayer.Character
+        local targetChar = targetPlayer.Character
+        if char and targetChar and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
+            local myHRP = char.HumanoidRootPart
+            local targetHRP = targetChar.HumanoidRootPart
+            local backOffset = targetHRP.CFrame * CFrame.new(0, 2, 3)
+            myHRP.CFrame = backOffset
+        end
+    end)
+end
+
+local function unattachFromPlayer()
+    attachedTarget = nil
+    if attachConnection then
+        attachConnection:Disconnect()
+        attachConnection = nil
+    end
+end
+
+local function buildPlayerEntry(player)
+    local entry = Instance.new("Frame")
+    entry.Parent = PlayersList
+    entry.Size = UDim2.new(1, -10, 0, 30)
+    entry.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Parent = entry
+    nameLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    nameLabel.Position = UDim2.new(0, 5, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextSize = 16
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local arrowButton = Instance.new("TextButton")
+    arrowButton.Parent = entry
+    arrowButton.Size = UDim2.new(0.1, 0, 1, 0)
+    arrowButton.Position = UDim2.new(0.8, 0, 0, 0)
+    arrowButton.BackgroundColor3 = Color3.fromRGB(60, 0, 0)
+    arrowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    arrowButton.Font = Enum.Font.SourceSansBold
+    arrowButton.TextSize = 18
+    arrowButton.Text = ">"
+
+    local optionsFrame = Instance.new("Frame")
+    optionsFrame.Parent = entry
+    optionsFrame.Size = UDim2.new(1, -10, 0, 120)
+    optionsFrame.Position = UDim2.new(0, 5, 1, 0)
+    optionsFrame.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
+    optionsFrame.Visible = false
+
+    local optLayout = Instance.new("UIListLayout")
+    optLayout.Parent = optionsFrame
+    optLayout.Padding = UDim.new(0, 5)
+
+    local function optButton(text, callback)
+        local btn = Instance.new("TextButton")
+        btn.Parent = optionsFrame
+        btn.Size = UDim2.new(1, -10, 0, 25)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.SourceSans
+        btn.TextSize = 14
+        btn.Text = text
+        btn.MouseButton1Click:Connect(function()
+            pcall(function()
+                callback()
+            end)
+        end)
+    end
+
+    -- Kill Player
+    optButton("Kill Player", function()
+        for _, obj in ipairs(game:GetDescendants()) do
+            if obj:IsA("RemoteEvent") then
+                local name = obj.Name:lower()
+                if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") then
+                    if player.Character then
+                        pcall(function() obj:FireServer(player) end)
+                        pcall(function() obj:FireServer(player.Character) end)
+                        pcall(function() obj:FireServer(player.Character:FindFirstChild("Humanoid"), 100) end)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Push Player
+    optButton("Push Player", function()
+        local character = LocalPlayer.Character
+        if character then
+            local pushTool = character:FindFirstChild("Push")
+            if pushTool and pushTool:IsA("Tool") then
+                local isMingle = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Mingle")
+                local isRedLight = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("RedLightGreenLightLight")
+                if isMingle or isRedLight then
+                    local pushRemote = pushTool:FindFirstChildWhichIsA("RemoteEvent", true)
+                    if pushRemote and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        pcall(function() pushRemote:FireServer(player.Character) end)
+                        pcall(function() pushRemote:FireServer(player) end)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Teleport to Player
+    optButton("Teleport to Player", function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
+        end
+    end)
+
+    -- Attach to Player
+    optButton("Attach to Player", function()
+        if player ~= LocalPlayer then
+            attachToPlayer(player)
+        end
+    end)
+
+    -- Unattach
+    optButton("Unattach from Player", function()
+        unattachFromPlayer()
+    end)
+
+    arrowButton.MouseButton1Click:Connect(function()
+        optionsFrame.Visible = not optionsFrame.Visible
+        arrowButton.Text = optionsFrame.Visible and "v" or ">"
+        PlayersList.CanvasSize = UDim2.new(0, 0, 0, PlayersLayout.AbsoluteContentSize.Y + 10)
+    end)
+
+    PlayersList.CanvasSize = UDim2.new(0, 0, 0, PlayersLayout.AbsoluteContentSize.Y + 10)
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    buildPlayerEntry(plr)
+end
+
+Players.PlayerAdded:Connect(function(plr)
+    buildPlayerEntry(plr)
+end)
+
+--------------------------------------------------
+-- TELEPORTS TAB
+--------------------------------------------------
+
+local TeleportsFrame = Tabs["Teleports_Frame"]
+
+local function teleportTo(x, y, z)
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(x, y, z)
+    end
+end
+
+createButton(TeleportsFrame, "Coffin Room", function()
+    teleportTo(8120, 82, 3578)
+end)
+
+createButton(TeleportsFrame, "RLGL", function()
+    teleportTo(-12571, -790, -2900)
+end)
+
+createButton(TeleportsFrame, "Hide and Seek Safe Area", function()
+    teleportTo(-640, 183, 406)
+end)
+
+createButton(TeleportsFrame, "Jumprope", function()
+    teleportTo(143, 120, -8)
+end)
+
+createButton(TeleportsFrame, "Tug of War", function()
+    teleportTo(-668, 42, 2608)
+end)
+
+--------------------------------------------------
+-- AUTO WIN TAB
+--------------------------------------------------
+
+local AutoWinFrame = Tabs["Auto Win_Frame"]
+
+createButton(AutoWinFrame, "Instant RLGL", function()
+    teleportTo(-12198, -790, -3060)
+end)
+
+--------------------------------------------------
+-- ESP TAB
+--------------------------------------------------
+
+local ESPFrame = Tabs["ESP_Frame"]
+
+local hideSeekESPEnabled = false
+
+createButton(ESPFrame, "Hide and Seek ESP: OFF", function(button)
+    hideSeekESPEnabled = not hideSeekESPEnabled
+    button.Text = hideSeekESPEnabled and "Hide and Seek ESP: ON" or "Hide and Seek ESP: OFF"
+    button.TextColor3 = hideSeekESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if hideSeekESPEnabled then
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr.Character then
+                    local char = plr.Character
+                    local teamColor = nil
+
+                    for _, acc in ipairs(char:GetChildren()) do
+                        if acc:IsA("Accessory") then
+                            if acc.Name == "Vest_blue" then
+                                teamColor = Color3.fromRGB(0, 0, 255)
+                            elseif acc.Name == "Vest_red" then
+                                teamColor = Color3.fromRGB(255, 0, 0)
+                            end
+                        end
+                    end
+
+                    if teamColor then
+                        highlightTarget(char, teamColor)
+                        createTracer(char, teamColor)
+                        createNameTag(char, plr.Name, teamColor)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+--------------------------------------------------
+-- PROTECTIONS TAB
+--------------------------------------------------
+
+local ProtectionsFrame = Tabs["Protections_Frame"]
+
+local bypassAnticheatEnabled = false
+
+createButton(ProtectionsFrame, "Bypass Anticheat: OFF", function(button)
+    bypassAnticheatEnabled = not bypassAnticheatEnabled
+    button.Text = bypassAnticheatEnabled and "Bypass Anticheat: ON" or "Bypass Anticheat: OFF"
+    button.TextColor3 = bypassAnticheatEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+    if bypassAnticheatEnabled then
+        local map = workspace:FindFirstChild("Map")
+        if map and map:FindFirstChild("RedLightGreenLight") and map.RedLightGreenLight:FindFirstChild("Remotes") then
+            map.RedLightGreenLight.Remotes:Destroy()
+        end
+    end
+end)
+
+--------------------------------------------------
+-- TROLLING TAB
+--------------------------------------------------
+
+local TrollingFrame = Tabs["Trolling_Frame"]
 
 local pushEnabled = false
 
-createButton("Push Everyone: OFF", function(button)
+createButton(TrollingFrame, "Push Everyone: OFF", function(button)
     pushEnabled = not pushEnabled
     button.Text = pushEnabled and "Push Everyone: ON" or "Push Everyone: OFF"
     button.TextColor3 = pushEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -332,13 +685,13 @@ task.spawn(function()
                 if pushTool and pushTool:IsA("Tool") then
                     local isMingle = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Mingle")
                     local isRedLight = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("RedLightGreenLightLight")
-                    
+
                     if isMingle or isRedLight then
                         if not pushTool:FindFirstChild("BMF_Hooked") then
                             local hookMarker = Instance.new("BoolValue")
                             hookMarker.Name = "BMF_Hooked"
                             hookMarker.Parent = pushTool
-                            
+
                             pushTool.Activated:Connect(function()
                                 if not pushEnabled then return end
                                 local pushRemote = pushTool:FindFirstChildWhichIsA("RemoteEvent", true)
@@ -359,11 +712,7 @@ task.spawn(function()
     end
 end)
 
---------------------------------------------------
--- KILL EVERYONE (Remote-Vulnerability Scan)
---------------------------------------------------
-
-createButton("Kill Everyone", function()
+createButton(TrollingFrame, "Kill Everyone", function()
     for _, obj in ipairs(game:GetDescendants()) do
         if obj:IsA("RemoteEvent") then
             local name = obj.Name:lower()
@@ -382,15 +731,15 @@ createButton("Kill Everyone", function()
 end)
 
 --------------------------------------------------
--- RED LIGHT GREEN LIGHT TELEPORT
+-- SCRIPTS TAB
 --------------------------------------------------
 
-createButton("Red Light Green Light", function()
-    local character = LocalPlayer.Character
-    if character then
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp:IsA("BasePart") then
-            hrp.CFrame = CFrame.new(-12203, -790, -3093)
-        end
-    end
+local ScriptsFrame = Tabs["Scripts_Frame"]
+
+createButton(ScriptsFrame, "Infinite Yield", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end)
+
+createButton(ScriptsFrame, "Dex Explorer", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
 end)

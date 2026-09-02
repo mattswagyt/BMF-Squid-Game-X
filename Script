@@ -157,15 +157,43 @@ StarterGui:SetCore("SendNotification",{
 })
 
 --------------------------------------------------
--- BUTTON CREATOR (PER-TAB)
+-- DYNAMIC SCROLLING TAB CREATOR
 --------------------------------------------------
+
+local function setupScrollTab(tabFrame)
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Parent = tabFrame
+    scroll.Size = UDim2.new(1, -20, 1, -20)
+    scroll.Position = UDim2.new(0, 10, 0, 10)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollBarThickness = 6
+    scroll.BackgroundTransparency = 1
+
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = scroll
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 5)
+
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end)
+
+    return scroll
+end
+
+local LocalPlayerScroll = setupScrollTab(Tabs["Local Player_Frame"])
+local TeleportsScroll = setupScrollTab(Tabs["Teleports_Frame"])
+local AutoWinScroll = setupScrollTab(Tabs["Auto Win_Frame"])
+local ESPScroll = setupScrollTab(Tabs["ESP_Frame"])
+local ProtectionsScroll = setupScrollTab(Tabs["Protections_Frame"])
+local TrollingScroll = setupScrollTab(Tabs["Trolling_Frame"])
+local ScriptsScroll = setupScrollTab(Tabs["Scripts_Frame"])
 
 local function createButton(parent, name, callback)
     local Button = Instance.new("TextButton")
     Button.Parent = parent
     Button.Text = name
-    Button.Size = UDim2.new(1, -20, 0, 30)
-    Button.Position = UDim2.new(0, 10, 0, (#parent:GetChildren() - 1) * 35)
+    Button.Size = UDim2.new(1, -10, 0, 30)
     Button.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
     Button.TextColor3 = Color3.fromRGB(255, 255, 255)
     Button.Font = Enum.Font.SourceSans
@@ -380,15 +408,13 @@ end
 -- LOCAL PLAYER TAB
 --------------------------------------------------
 
-local LocalFrame = Tabs["Local Player_Frame"]
-
--- SHIFT TO SPEED
-local shiftSpeedEnabled = true
+-- SHIFT TO SPEED (DEFAULT: OFF)
+local shiftSpeedEnabled = false
 local normalSpeed = 16
 local boostedSpeed = 50
 local holdingShift = false
 
-createButton(LocalFrame, "Shift to Speed: ON", function(button)
+local speedBtn = createButton(LocalPlayerScroll, "Shift to Speed: OFF", function(button)
     shiftSpeedEnabled = not shiftSpeedEnabled
     button.Text = shiftSpeedEnabled and "Shift to Speed: ON" or "Shift to Speed: OFF"
     button.TextColor3 = shiftSpeedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -401,6 +427,7 @@ createButton(LocalFrame, "Shift to Speed: ON", function(button)
         end
     end
 end)
+speedBtn.TextColor3 = Color3.fromRGB(255,0,0)
 
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
@@ -432,7 +459,7 @@ end)
 local flyEnabled = false
 local flying = false
 
-createButton(LocalFrame, "T to Fly: OFF", function(button)
+createButton(LocalPlayerScroll, "T to Fly: OFF", function(button)
     flyEnabled = not flyEnabled
     button.Text = flyEnabled and "T to Fly: ON" or "T to Fly: OFF"
     button.TextColor3 = flyEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -488,7 +515,7 @@ end)
 local flyNoclipEnabled = false
 local noclip = false
 
-createButton(LocalFrame, "T Fly + Noclip: OFF", function(button)
+createButton(LocalPlayerScroll, "T Fly + Noclip: OFF", function(button)
     flyNoclipEnabled = not flyNoclipEnabled
     button.Text = flyNoclipEnabled and "T Fly + Noclip: ON" or "T Fly + Noclip: OFF"
     button.TextColor3 = flyNoclipEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -519,7 +546,7 @@ end)
 local ctrlNoclipFeatureEnabled = false
 local ctrlNoclipActive = false
 
-createButton(LocalFrame, "CTRL to Noclip: OFF", function(button)
+createButton(LocalPlayerScroll, "CTRL to Noclip: OFF", function(button)
     ctrlNoclipFeatureEnabled = not ctrlNoclipFeatureEnabled
     if not ctrlNoclipFeatureEnabled then
         ctrlNoclipActive = false
@@ -548,7 +575,7 @@ end)
 -- INFINITE JUMP
 local infiniteJumpEnabled = false
 
-createButton(LocalFrame, "Infinite Jump: OFF", function(button)
+createButton(LocalPlayerScroll, "Infinite Jump: OFF", function(button)
     infiniteJumpEnabled = not infiniteJumpEnabled
     button.Text = infiniteJumpEnabled and "Infinite Jump: ON" or "Infinite Jump: OFF"
     button.TextColor3 = infiniteJumpEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -566,7 +593,7 @@ end)
 -- GOD MODE (WIP TOGGLE)
 local godModeEnabled = false
 
-createButton(LocalFrame, "God Mode: OFF", function(button)
+createButton(LocalPlayerScroll, "God Mode: OFF", function(button)
     godModeEnabled = not godModeEnabled
     button.Text = godModeEnabled and "God Mode: ON" or "God Mode: OFF"
     button.TextColor3 = godModeEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -670,6 +697,8 @@ attachRandomPlayerBtn = createButton(PlayersFrame, "Attach to random Player: OFF
     button.Text = attachRandomPlayerEnabled and "Attach to random Player: ON" or "Attach to random Player: OFF"
     button.TextColor3 = attachRandomPlayerEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
+attachRandomPlayerBtn.Position = UDim2.new(0, 10, 0, 10)
+attachRandomPlayerBtn.Size = UDim2.new(1, -20, 0, 30)
 
 attachRandomBlueBtn = createButton(PlayersFrame, "Attach to random Blue Player: OFF", function(button)
     attachRandomBlueEnabled = not attachRandomBlueEnabled
@@ -691,6 +720,8 @@ attachRandomBlueBtn = createButton(PlayersFrame, "Attach to random Blue Player: 
     button.Text = attachRandomBlueEnabled and "Attach to random Blue Player: ON" or "Attach to random Blue Player: OFF"
     button.TextColor3 = attachRandomBlueEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
+attachRandomBlueBtn.Position = UDim2.new(0, 10, 0, 45)
+attachRandomBlueBtn.Size = UDim2.new(1, -20, 0, 30)
 
 attachRandomRedBtn = createButton(PlayersFrame, "Attach to random Red Player: OFF", function(button)
     attachRandomRedEnabled = not attachRandomRedEnabled
@@ -712,6 +743,8 @@ attachRandomRedBtn = createButton(PlayersFrame, "Attach to random Red Player: OF
     button.Text = attachRandomRedEnabled and "Attach to random Red Player: ON" or "Attach to random Red Player: OFF"
     button.TextColor3 = attachRandomRedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
+attachRandomRedBtn.Position = UDim2.new(0, 10, 0, 80)
+attachRandomRedBtn.Size = UDim2.new(1, -20, 0, 30)
 
 -- Scrolling Player Selection Frame
 local PlayersList = Instance.new("ScrollingFrame")
@@ -861,7 +894,6 @@ local function buildPlayerEntry(player)
         EntryFrame = entry
     }
 
-    -- Character death monitoring for auto-purge
     local function monitorCharacter(char)
         if char then
             local hum = char:WaitForChild("Humanoid", 5)
@@ -905,8 +937,6 @@ end)
 -- TELEPORTS TAB
 --------------------------------------------------
 
-local TeleportsFrame = Tabs["Teleports_Frame"]
-
 local function teleportTo(x, y, z)
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
@@ -914,67 +944,67 @@ local function teleportTo(x, y, z)
     end
 end
 
-createButton(TeleportsFrame, "Coffin Room", function()
+createButton(TeleportsScroll, "Coffin Room", function()
     teleportTo(8120, 82, 3578)
 end)
 
-createButton(TeleportsFrame, "Facility", function()
+createButton(TeleportsScroll, "Facility", function()
     teleportTo(-1992, -860, 15907)
 end)
 
-createButton(TeleportsFrame, "Island", function()
+createButton(TeleportsScroll, "Island", function()
     teleportTo(-2273, -786, 15728)
 end)
 
-createButton(TeleportsFrame, "Boats", function()
+createButton(TeleportsScroll, "Boats", function()
     teleportTo(-2914, -786, 15470)
 end)
 
-createButton(TeleportsFrame, "Lobby", function()
+createButton(TeleportsScroll, "Lobby", function()
     teleportTo(8038, 89, 3713)
 end)
 
-createButton(TeleportsFrame, "RLGL", function()
+createButton(TeleportsScroll, "RLGL", function()
     teleportTo(-12571, -790, -2900)
 end)
 
-createButton(TeleportsFrame, "Honeycomb", function()
+createButton(TeleportsScroll, "Honeycomb", function()
     teleportTo(26, 5, 3196)
 end)
 
-createButton(TeleportsFrame, "Pentahlon", function()
+createButton(TeleportsScroll, "Pentahlon", function()
     teleportTo(-2575, 15, -4914)
 end)
 
-createButton(TeleportsFrame, "Hide and Seek Safe Area", function()
+createButton(TeleportsScroll, "Hide and Seek Safe Area", function()
     teleportTo(-640, 183, 406)
 end)
 
-createButton(TeleportsFrame, "Hide and Seek", function()
+createButton(TeleportsScroll, "Hide and Seek", function()
     teleportTo(-793, 8, 339)
 end)
 
-createButton(TeleportsFrame, "Mingle", function()
+createButton(TeleportsScroll, "Mingle", function()
     teleportTo(-805, 35, 1570)
 end)
 
-createButton(TeleportsFrame, "Frontman Office", function()
+createButton(TeleportsScroll, "Frontman Office", function()
     teleportTo(7961, 112, 3669)
 end)
 
-createButton(TeleportsFrame, "Frontman Door", function()
+createButton(TeleportsScroll, "Frontman Door", function()
     teleportTo(7945, 120, 3619)
 end)
 
-createButton(TeleportsFrame, "Jumprope", function()
+createButton(TeleportsScroll, "Jumprope", function()
     teleportTo(143, 120, -8)
 end)
 
-createButton(TeleportsFrame, "Tug of War", function()
+createButton(TeleportsScroll, "Tug of War", function()
     teleportTo(-668, 42, 2608)
 end)
 
-createButton(TeleportsFrame, "Glass Bridge", function()
+createButton(TeleportsScroll, "Glass Bridge", function()
     teleportTo(1280, 102, -1089)
 end)
 
@@ -982,9 +1012,7 @@ end)
 -- AUTO WIN TAB
 --------------------------------------------------
 
-local AutoWinFrame = Tabs["Auto Win_Frame"]
-
-createButton(AutoWinFrame, "Instant RLGL", function()
+createButton(AutoWinScroll, "Instant RLGL", function()
     task.spawn(function()
         teleportTo(-12496, -790, -3000)
         task.wait(3)
@@ -992,7 +1020,7 @@ createButton(AutoWinFrame, "Instant RLGL", function()
     end)
 end)
 
-createButton(AutoWinFrame, "Instant Jumprope", function()
+createButton(AutoWinScroll, "Instant Jumprope", function()
     task.spawn(function()
         pcall(function()
             if workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("JumpRope") and workspace.Map.JumpRope:FindFirstChild("Rope") then
@@ -1013,32 +1041,30 @@ end)
 -- ESP TAB
 --------------------------------------------------
 
-local ESPFrame = Tabs["ESP_Frame"]
-
 local hideSeekESPEnabled = false
 local detectiveESPEnabled = false
 local guardESPEnabled = false
 local frontmanESPEnabled = false
 
-createButton(ESPFrame, "Hide and Seek ESP: OFF", function(button)
+createButton(ESPScroll, "Hide and Seek ESP: OFF", function(button)
     hideSeekESPEnabled = not hideSeekESPEnabled
     button.Text = hideSeekESPEnabled and "Hide and Seek ESP: ON" or "Hide and Seek ESP: OFF"
     button.TextColor3 = hideSeekESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
-createButton(ESPFrame, "Detective ESP: OFF", function(button)
+createButton(ESPScroll, "Detective ESP: OFF", function(button)
     detectiveESPEnabled = not detectiveESPEnabled
     button.Text = detectiveESPEnabled and "Detective ESP: ON" or "Detective ESP: OFF"
     button.TextColor3 = detectiveESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
-createButton(ESPFrame, "Guard ESP: OFF", function(button)
+createButton(ESPScroll, "Guard ESP: OFF", function(button)
     guardESPEnabled = not guardESPEnabled
     button.Text = guardESPEnabled and "Guard ESP: ON" or "Guard ESP: OFF"
     button.TextColor3 = guardESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
-createButton(ESPFrame, "Frontman ESP: OFF", function(button)
+createButton(ESPScroll, "Frontman ESP: OFF", function(button)
     frontmanESPEnabled = not frontmanESPEnabled
     button.Text = frontmanESPEnabled and "Frontman ESP: ON" or "Frontman ESP: OFF"
     button.TextColor3 = frontmanESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -1125,11 +1151,9 @@ end)
 -- PROTECTIONS TAB
 --------------------------------------------------
 
-local ProtectionsFrame = Tabs["Protections_Frame"]
-
 local bypassAnticheatEnabled = false
 
-createButton(ProtectionsFrame, "Bypass Anticheat: OFF", function(button)
+createButton(ProtectionsScroll, "Bypass Anticheat: OFF", function(button)
     bypassAnticheatEnabled = not bypassAnticheatEnabled
     button.Text = bypassAnticheatEnabled and "Bypass Anticheat: ON" or "Bypass Anticheat: OFF"
     button.TextColor3 = bypassAnticheatEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
@@ -1138,7 +1162,6 @@ end)
 local function cleanAnticheatRemotes()
     if not bypassAnticheatEnabled then return end
     pcall(function()
-        -- RLGL Remotes
         local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Maps")
         if map then
             local rlgl = map:FindFirstChild("RedLightGreenLight") or map:FindFirstChild("RedLightGreenLightLight")
@@ -1146,7 +1169,6 @@ local function cleanAnticheatRemotes()
                 rlgl.Remotes:Destroy()
             end
             
-            -- Stage KillSecures & TouchZones
             if map:FindFirstChild("Glass") and map.Glass:FindFirstChild("Map") and map.Glass.Map:FindFirstChild("KillSecure") then
                 map.Glass.Map.KillSecure:Destroy()
             end
@@ -1161,7 +1183,6 @@ local function cleanAnticheatRemotes()
             end
         end
 
-        -- ReplicatedStorage KillSecures
         if ReplicatedStorage:FindFirstChild("Maps") then
             local rsMaps = ReplicatedStorage.Maps
             if rsMaps:FindFirstChild("Glass") and rsMaps.Glass:FindFirstChild("Map") and rsMaps.Glass.Map:FindFirstChild("KillSecure") then
@@ -1198,9 +1219,7 @@ end)
 -- TROLLING TAB
 --------------------------------------------------
 
-local TrollingFrame = Tabs["Trolling_Frame"]
-
-createButton(TrollingFrame, "Push Everyone", function()
+createButton(TrollingScroll, "Push Everyone", function()
     task.spawn(function()
         for _, targetPlayer in ipairs(Players:GetPlayers()) do
             if targetPlayer ~= LocalPlayer then
@@ -1210,7 +1229,7 @@ createButton(TrollingFrame, "Push Everyone", function()
     end)
 end)
 
-createButton(TrollingFrame, "Kill Everyone", function()
+createButton(TrollingScroll, "Kill Everyone", function()
     killEveryoneNonBlocking()
 end)
 
@@ -1218,12 +1237,14 @@ end)
 -- SCRIPTS TAB
 --------------------------------------------------
 
-local ScriptsFrame = Tabs["Scripts_Frame"]
-
-createButton(ScriptsFrame, "Infinite Yield", function()
+createButton(ScriptsScroll, "Infinite Yield", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
 end)
 
-createButton(ScriptsFrame, "Dex Explorer", function()
+createButton(ScriptsScroll, "Dex Explorer", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+end)
+
+createButton(ScriptsScroll, "SimpleSpy V3", function()
+    loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpyBeta.lua"))()
 end)

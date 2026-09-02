@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Teams = game:GetService("Teams")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -178,20 +179,82 @@ local function createButton(parent, name, callback)
 end
 
 --------------------------------------------------
+-- CORE EXPLOIT HELPER FUNCTIONS
+--------------------------------------------------
+
+local function eliminatePlayer(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return end
+    local character = targetPlayer.Character
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    
+    if character and humanoid then
+        -- 1. Client-side state override attempt
+        pcall(function()
+            humanoid.Health = 0
+        end)
+        
+        -- 2. Server Remote Execution scan
+        for _, obj in ipairs(game:GetDescendants()) do
+            if obj:IsA("RemoteEvent") then
+                local name = obj.Name:lower()
+                if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") then
+                    pcall(function() obj:FireServer(targetPlayer) end)
+                    pcall(function() obj:FireServer(character) end)
+                    pcall(function() obj:FireServer(humanoid, 100) end)
+                    pcall(function() obj:FireServer(humanoid, 0) end)
+                end
+            end
+        end
+    end
+end
+
+local function executePushOnTarget(targetPlayer)
+    if not targetPlayer or targetPlayer == LocalPlayer or not targetPlayer.Character then return end
+    local localChar = LocalPlayer.Character
+    if not localChar then return end
+
+    -- Locate Push Tool in Character or Backpack
+    local pushTool = localChar:FindFirstChild("Push") or LocalPlayer.Backpack:FindFirstChild("Push")
+    if pushTool and pushTool:IsA("Tool") then
+        local pushRemote = pushTool:FindFirstChildWhichIsA("RemoteEvent", true)
+        if not pushRemote then
+            pushRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Interact")
+        end
+
+        if pushRemote and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function() pushRemote:FireServer(targetPlayer.Character) end)
+            pcall(function() pushRemote:FireServer(targetPlayer) end)
+            pcall(function() pushRemote:FireServer(targetPlayer.Character.HumanoidRootPart) end)
+        end
+    end
+end
+
+--------------------------------------------------
 -- ESP HELPERS
 --------------------------------------------------
 
-local function highlightTarget(target, color)
-    if target:FindFirstChild("BMF_Highlight") then return end
-
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "BMF_Highlight"
-    highlight.Adornee = target
+local function highlightTarget(target, color, customName)
+    local hlName = customName or "BMF_Highlight"
+    local highlight = target:FindFirstChild(hlName)
+    if not highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Name = hlName
+        highlight.Adornee = target
+        highlight.OutlineColor = Color3.fromRGB(255,255,255)
+        highlight.FillTransparency = 0.4
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Always visible through walls
+        highlight.Parent = target
+    end
     highlight.FillColor = color
-    highlight.OutlineColor = Color3.fromRGB(255,255,255)
-    highlight.FillTransparency = 0.5
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = target
+end
+
+local function removeHighlight(target, customName)
+    local hlName = customName or "BMF_Highlight"
+    local highlight = target:FindFirstChild(hlName)
+    if highlight then
+        highlight:Destroy()
+    end
 end
 
 local function createTracer(target, color)
@@ -231,7 +294,7 @@ local function createNameTag(target, text, color)
     billboard.Size = UDim2.new(0,200,0,50)
     billboard.StudsOffset = Vector3.new(0,3,0)
     billboard.AlwaysOnTop = true
-    billboard.MaxDistance = 500
+    billboard.MaxDistance = 5000
     billboard.Parent = target
 
     local label = Instance.new("TextLabel")
@@ -297,13 +360,13 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Q TO FLY
+-- T TO FLY
 local flyEnabled = false
 local flying = false
 
-createButton(LocalFrame, "Q to Fly: OFF", function(button)
+createButton(LocalFrame, "T to Fly: OFF", function(button)
     flyEnabled = not flyEnabled
-    button.Text = flyEnabled and "Q to Fly: ON" or "Q to Fly: OFF"
+    button.Text = flyEnabled and "T to Fly: ON" or "T to Fly: OFF"
     button.TextColor3 = flyEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
@@ -343,8 +406,9 @@ local function startFly()
     bg:Destroy()
 end
 
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Q and flyEnabled then
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.T and flyEnabled then
         flying = not flying
         if flying then
             startFly()
@@ -352,13 +416,13 @@ UIS.InputBegan:Connect(function(input)
     end
 end)
 
--- Q TO FLY + NOCLIP
+-- T TO FLY + NOCLIP
 local flyNoclipEnabled = false
 local noclip = false
 
-createButton(LocalFrame, "Q Fly + Noclip: OFF", function(button)
+createButton(LocalFrame, "T Fly + Noclip: OFF", function(button)
     flyNoclipEnabled = not flyNoclipEnabled
-    button.Text = flyNoclipEnabled and "Q Fly + Noclip: ON" or "Q Fly + Noclip: OFF"
+    button.Text = flyNoclipEnabled and "T Fly + Noclip: ON" or "T Fly + Noclip: OFF"
     button.TextColor3 = flyNoclipEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
@@ -372,8 +436,9 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Q and flyNoclipEnabled then
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.T and flyNoclipEnabled then
         noclip = not noclip
         flying = not flying
         if flying then
@@ -404,16 +469,26 @@ PlayersLayout.Padding = UDim.new(0, 5)
 local attachedTarget = nil
 local attachConnection = nil
 
-local function attachToPlayer(targetPlayer)
-    attachedTarget = targetPlayer
+local function unattachFromPlayer()
+    attachedTarget = nil
     if attachConnection then
         attachConnection:Disconnect()
         attachConnection = nil
     end
+end
 
+local function attachToPlayer(targetPlayer)
+    -- Fully clean up existing connection state before binding
+    unattachFromPlayer()
+
+    attachedTarget = targetPlayer
     attachConnection = RunService.Heartbeat:Connect(function()
+        if not attachedTarget or not attachedTarget.Parent then
+            unattachFromPlayer()
+            return
+        end
         local char = LocalPlayer.Character
-        local targetChar = targetPlayer.Character
+        local targetChar = attachedTarget.Character
         if char and targetChar and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
             local myHRP = char.HumanoidRootPart
             local targetHRP = targetChar.HumanoidRootPart
@@ -421,14 +496,6 @@ local function attachToPlayer(targetPlayer)
             myHRP.CFrame = backOffset
         end
     end)
-end
-
-local function unattachFromPlayer()
-    attachedTarget = nil
-    if attachConnection then
-        attachConnection:Disconnect()
-        attachConnection = nil
-    end
 end
 
 local function buildPlayerEntry(player)
@@ -500,37 +567,12 @@ local function buildPlayerEntry(player)
 
     -- Kill Player
     optButton("Kill Player", function()
-        for _, obj in ipairs(game:GetDescendants()) do
-            if obj:IsA("RemoteEvent") then
-                local name = obj.Name:lower()
-                if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") then
-                    if player.Character then
-                        pcall(function() obj:FireServer(player) end)
-                        pcall(function() obj:FireServer(player.Character) end)
-                        pcall(function() obj:FireServer(player.Character:FindFirstChild("Humanoid"), 100) end)
-                    end
-                end
-            end
-        end
+        eliminatePlayer(player)
     end)
 
     -- Push Player
     optButton("Push Player", function()
-        local character = LocalPlayer.Character
-        if character then
-            local pushTool = character:FindFirstChild("Push")
-            if pushTool and pushTool:IsA("Tool") then
-                local isMingle = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Mingle")
-                local isRedLight = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("RedLightGreenLightLight")
-                if isMingle or isRedLight then
-                    local pushRemote = pushTool:FindFirstChildWhichIsA("RemoteEvent", true)
-                    if pushRemote and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        pcall(function() pushRemote:FireServer(player.Character) end)
-                        pcall(function() pushRemote:FireServer(player) end)
-                    end
-                end
-            end
-        end
+        executePushOnTarget(player)
     end)
 
     -- Teleport to Player
@@ -603,6 +645,14 @@ createButton(TeleportsFrame, "Hide and Seek Safe Area", function()
     teleportTo(-640, 183, 406)
 end)
 
+createButton(TeleportsFrame, "Hide and Seek", function()
+    teleportTo(-793, 8, 339)
+end)
+
+createButton(TeleportsFrame, "Frontman Door", function()
+    teleportTo(7945, 120, 3619)
+end)
+
 createButton(TeleportsFrame, "Jumprope", function()
     teleportTo(143, 120, -8)
 end)
@@ -628,6 +678,9 @@ end)
 local ESPFrame = Tabs["ESP_Frame"]
 
 local hideSeekESPEnabled = false
+local detectiveESPEnabled = false
+local guardESPEnabled = false
+local frontmanESPEnabled = false
 
 createButton(ESPFrame, "Hide and Seek ESP: OFF", function(button)
     hideSeekESPEnabled = not hideSeekESPEnabled
@@ -635,15 +688,35 @@ createButton(ESPFrame, "Hide and Seek ESP: OFF", function(button)
     button.TextColor3 = hideSeekESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
+createButton(ESPFrame, "Detective ESP: OFF", function(button)
+    detectiveESPEnabled = not detectiveESPEnabled
+    button.Text = detectiveESPEnabled and "Detective ESP: ON" or "Detective ESP: OFF"
+    button.TextColor3 = detectiveESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+createButton(ESPFrame, "Guard ESP: OFF", function(button)
+    guardESPEnabled = not guardESPEnabled
+    button.Text = guardESPEnabled and "Guard ESP: ON" or "Guard ESP: OFF"
+    button.TextColor3 = guardESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+createButton(ESPFrame, "Frontman ESP: OFF", function(button)
+    frontmanESPEnabled = not frontmanESPEnabled
+    button.Text = frontmanESPEnabled and "Frontman ESP: ON" or "Frontman ESP: OFF"
+    button.TextColor3 = frontmanESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+-- Main ESP Loop
 task.spawn(function()
     while true do
         task.wait(0.5)
-        if hideSeekESPEnabled then
-            for _, plr in ipairs(Players:GetPlayers()) do
-                if plr.Character then
-                    local char = plr.Character
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local char = plr.Character
+                
+                -- Hide & Seek ESP
+                if hideSeekESPEnabled then
                     local teamColor = nil
-
                     for _, acc in ipairs(char:GetChildren()) do
                         if acc:IsA("Accessory") then
                             if acc.Name == "Vest_blue" then
@@ -655,11 +728,54 @@ task.spawn(function()
                     end
 
                     if teamColor then
-                        highlightTarget(char, teamColor)
+                        highlightTarget(char, teamColor, "BMF_HideSeek_Highlight")
                         createTracer(char, teamColor)
                         createNameTag(char, plr.Name, teamColor)
                     end
+                else
+                    removeHighlight(char, "BMF_HideSeek_Highlight")
                 end
+
+                -- Detective ESP (Team Gold)
+                if detectiveESPEnabled then
+                    if plr.Team and (plr.Team.Name == "Detective" or plr.Team == Teams:FindFirstChild("Detective")) then
+                        highlightTarget(char, Color3.fromRGB(255, 215, 0), "BMF_Detective_Highlight")
+                        createNameTag(char, "[Detective] " .. plr.Name, Color3.fromRGB(255, 215, 0))
+                    else
+                        removeHighlight(char, "BMF_Detective_Highlight")
+                    end
+                else
+                    removeHighlight(char, "BMF_Detective_Highlight")
+                end
+
+                -- Guard ESP (Hot Pink)
+                if guardESPEnabled then
+                    if plr.Team and (plr.Team.Name == "Guard" or plr.Team == Teams:FindFirstChild("Guard")) then
+                        highlightTarget(char, Color3.fromRGB(255, 105, 180), "BMF_Guard_Highlight")
+                        createNameTag(char, "[Guard] " .. plr.Name, Color3.fromRGB(255, 105, 180))
+                    else
+                        removeHighlight(char, "BMF_Guard_Highlight")
+                    end
+                else
+                    removeHighlight(char, "BMF_Guard_Highlight")
+                end
+
+                -- Frontman ESP (Black)
+                if frontmanESPEnabled then
+                    local isGuard = plr.Team and (plr.Team.Name == "Guard" or plr.Team == Teams:FindFirstChild("Guard"))
+                    local hasMask = char:FindFirstChild("Armour") and char.Armour:FindFirstChild("MASK")
+                    local hasRevolver = char:FindFirstChild("Revolver") or (plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild("Revolver"))
+
+                    if isGuard and (hasMask or hasRevolver) then
+                        highlightTarget(char, Color3.fromRGB(0, 0, 0), "BMF_Frontman_Highlight")
+                        createNameTag(char, "[FRONTMAN] " .. plr.Name, Color3.fromRGB(0, 0, 0))
+                    else
+                        removeHighlight(char, "BMF_Frontman_Highlight")
+                    end
+                else
+                    removeHighlight(char, "BMF_Frontman_Highlight")
+                end
+
             end
         end
     end
@@ -677,11 +793,29 @@ createButton(ProtectionsFrame, "Bypass Anticheat: OFF", function(button)
     bypassAnticheatEnabled = not bypassAnticheatEnabled
     button.Text = bypassAnticheatEnabled and "Bypass Anticheat: ON" or "Bypass Anticheat: OFF"
     button.TextColor3 = bypassAnticheatEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
 
-    if bypassAnticheatEnabled then
-        local map = workspace:FindFirstChild("Map")
-        if map and map:FindFirstChild("RedLightGreenLight") and map.RedLightGreenLight:FindFirstChild("Remotes") then
-            map.RedLightGreenLight.Remotes:Destroy()
+-- Constant Active Anticheat Bypass Loop
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if bypassAnticheatEnabled then
+            pcall(function()
+                local map = workspace:FindFirstChild("Map")
+                if map and map:FindFirstChild("RedLightGreenLight") and map.RedLightGreenLight:FindFirstChild("Remotes") then
+                    map.RedLightGreenLight.Remotes:Destroy()
+                end
+                
+                -- Neutralize client detector remotes globally
+                for _, obj in ipairs(game:GetDescendants()) do
+                    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                        local name = obj.Name:lower()
+                        if name:find("anticheat") or name:find("ban") or name:find("check") or name:find("detector") then
+                            obj:Destroy()
+                        end
+                    end
+                end
+            end)
         end
     end
 end)
@@ -704,33 +838,9 @@ task.spawn(function()
     while true do
         task.wait(0.1)
         if pushEnabled then
-            local character = LocalPlayer.Character
-            if character then
-                local pushTool = character:FindFirstChild("Push")
-                if pushTool and pushTool:IsA("Tool") then
-                    local isMingle = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Mingle")
-                    local isRedLight = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("RedLightGreenLightLight")
-
-                    if isMingle or isRedLight then
-                        if not pushTool:FindFirstChild("BMF_Hooked") then
-                            local hookMarker = Instance.new("BoolValue")
-                            hookMarker.Name = "BMF_Hooked"
-                            hookMarker.Parent = pushTool
-
-                            pushTool.Activated:Connect(function()
-                                if not pushEnabled then return end
-                                local pushRemote = pushTool:FindFirstChildWhichIsA("RemoteEvent", true)
-                                if pushRemote then
-                                    for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                                        if targetPlayer ~= LocalPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                            pcall(function() pushRemote:FireServer(targetPlayer.Character) end)
-                                            pcall(function() pushRemote:FireServer(targetPlayer) end)
-                                        end
-                                    end
-                                end
-                            end)
-                        end
-                    end
+            for _, targetPlayer in ipairs(Players:GetPlayers()) do
+                if targetPlayer ~= LocalPlayer then
+                    executePushOnTarget(targetPlayer)
                 end
             end
         end
@@ -738,19 +848,9 @@ task.spawn(function()
 end)
 
 createButton(TrollingFrame, "Kill Everyone", function()
-    for _, obj in ipairs(game:GetDescendants()) do
-        if obj:IsA("RemoteEvent") then
-            local name = obj.Name:lower()
-            if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") then
-                for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    if targetPlayer ~= LocalPlayer and targetPlayer.Character then
-                        pcall(function() obj:FireServer(targetPlayer) end)
-                        pcall(function() obj:FireServer(targetPlayer.Character) end)
-                        pcall(function() obj:FireServer(targetPlayer.Character:FindFirstChild("Humanoid"), 100) end)
-                        pcall(function() obj:FireServer(targetPlayer.Character:FindFirstChild("Humanoid"), 0) end)
-                    end
-                end
-            end
+    for _, targetPlayer in ipairs(Players:GetPlayers()) do
+        if targetPlayer ~= LocalPlayer then
+            eliminatePlayer(targetPlayer)
         end
     end
 end)

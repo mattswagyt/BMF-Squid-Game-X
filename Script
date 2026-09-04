@@ -288,7 +288,7 @@ end
 local function executePushOnTarget(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer or not targetPlayer.Character then return end
     local localChar = LocalPlayer.Character
-    if not localChar then return end
+    if not localChar me:return end
 
     local pushTool = localChar:FindFirstChild("Push") or LocalPlayer.Backpack:FindFirstChild("Push")
     if pushTool and pushTool:IsA("Tool") then
@@ -590,14 +590,59 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- GOD MODE (WIP TOGGLE)
+-- GOD MODE (RAW METATABLE HOOK)
 local godModeEnabled = false
+local oldNamecall = nil
+
+local function hookMetatableGodMode()
+    if getrawmetatable and setreadonly and newcclosure and getnamecallmethod then
+        local rawMetatable = getrawmetatable(game)
+        oldNamecall = rawMetatable.__namecall
+
+        setreadonly(rawMetatable, false)
+
+        rawMetatable.__namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            if godModeEnabled and (method == "FireServer" or method == "InvokeServer") then
+                local remoteName = tostring(self):lower()
+                if remoteName:find("takedamage") or remoteName:find("eliminate") or remoteName:find("kill") or remoteName:find("ragdoll") or remoteName:find("damage") or remoteName:find("hit") or remoteName:find("die") then
+                    return nil
+                end
+            end
+            return oldNamecall(self, ...)
+        end)
+
+        setreadonly(rawMetatable, true)
+    end
+end
+
+pcall(hookMetatableGodMode)
+
+local function bindGodModeHealth(character)
+    if not character then return end
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if humanoid then
+        humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            if godModeEnabled and humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+        end)
+    end
+end
+
+if LocalPlayer.Character then
+    bindGodModeHealth(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(bindGodModeHealth)
 
 createButton(LocalPlayerScroll, "God Mode: OFF", function(button)
     godModeEnabled = not godModeEnabled
     button.Text = godModeEnabled and "God Mode: ON" or "God Mode: OFF"
     button.TextColor3 = godModeEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-    print("WIP")
+    
+    if godModeEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = LocalPlayer.Character:FindFirstChildOfClass("Humanoid").MaxHealth
+    end
 end)
 
 --------------------------------------------------
@@ -1247,4 +1292,20 @@ end)
 
 createButton(ScriptsScroll, "SimpleSpy V3", function()
     loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpyBeta.lua"))()
+end)
+
+createButton(ScriptsScroll, "Skulx", function()
+    loadstring(game:HttpGet("https://skulxdevelopment.vercel.app/skulx/loader"))()
+end)
+
+createButton(ScriptsScroll, "Mingle Hub", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/ExploiterGuy/Aqua-Hub/refs/heads/main/Mingle%20%5BSQUIID%20GAME%5D.txt"))()
+end)
+
+createButton(ScriptsScroll, "Kaixar", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/madenciicom/squidgamex/refs/heads/main/SquidGameX_KaiXar.lua"))()
+end)
+
+createButton(ScriptsScroll, "ToraScript", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/gumanba/Scripts/main/SquidGame"))()
 end)

@@ -1290,6 +1290,10 @@ createButton(ScriptsScroll, "Dex Explorer", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
 end)
 
+createButton(ScriptsScroll, "SimpleSpy OG", function()
+    loadstring(game:HttpGet("https://github.com/exxtremestuffs/SimpleSpySource/raw/master/SimpleSpy.lua"))()
+end)
+
 createButton(ScriptsScroll, "SimpleSpy V3", function()
     loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpyBeta.lua"))()
 end)

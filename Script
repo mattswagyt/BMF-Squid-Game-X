@@ -288,7 +288,7 @@ end
 local function executePushOnTarget(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer or not targetPlayer.Character then return end
     local localChar = LocalPlayer.Character
-    if not localChar me:return end
+    if not localChar then return end
 
     local pushTool = localChar:FindFirstChild("Push") or LocalPlayer.Backpack:FindFirstChild("Push")
     if pushTool and pushTool:IsA("Tool") then

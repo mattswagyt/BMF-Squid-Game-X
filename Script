@@ -590,58 +590,80 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- GOD MODE (RAW METATABLE HOOK)
+-- GOD MODE (REWORKED COMPREHENSIVE SERVER & CLIENT PROTECTOR)
 local godModeEnabled = false
-local oldNamecall = nil
 
-local function hookMetatableGodMode()
-    if getrawmetatable and setreadonly and newcclosure and getnamecallmethod then
-        local rawMetatable = getrawmetatable(game)
-        oldNamecall = rawMetatable.__namecall
-
-        setreadonly(rawMetatable, false)
-
-        rawMetatable.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if godModeEnabled and (method == "FireServer" or method == "InvokeServer") then
-                local remoteName = tostring(self):lower()
-                if remoteName:find("takedamage") or remoteName:find("eliminate") or remoteName:find("kill") or remoteName:find("ragdoll") or remoteName:find("damage") or remoteName:find("hit") or remoteName:find("die") then
-                    return nil
-                end
-            end
-            return oldNamecall(self, ...)
-        end)
-
-        setreadonly(rawMetatable, true)
-    end
-end
-
-pcall(hookMetatableGodMode)
-
-local function bindGodModeHealth(character)
+local function setupGodModeCharacter(character)
     if not character then return end
     local humanoid = character:WaitForChild("Humanoid", 5)
-    if humanoid then
-        humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-            if godModeEnabled and humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth
-            end
-        end)
+    if not humanoid then return end
+
+    -- Disable Client Damage Scripts inside Character
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall")) then
+            child.Disabled = true
+        end
     end
+
+    character.ChildAdded:Connect(function(child)
+        if godModeEnabled and child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall")) then
+            task.defer(function() child.Disabled = true end)
+        end
+    end)
+
+    -- Force Maximum Health & State Lock
+    humanoid.Health = humanoid.MaxHealth
+    
+    humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+        if godModeEnabled and humanoid.Health < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
+
+    humanoid.StateChanged:Connect(function(oldState, newState)
+        if godModeEnabled and (newState == Enum.HumanoidStateType.Dead or newState == Enum.HumanoidStateType.Ragdoll) then
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
 end
 
 if LocalPlayer.Character then
-    bindGodModeHealth(LocalPlayer.Character)
+    setupGodModeCharacter(LocalPlayer.Character)
 end
-LocalPlayer.CharacterAdded:Connect(bindGodModeHealth)
+LocalPlayer.CharacterAdded:Connect(setupGodModeCharacter)
+
+-- Continuous Anti-Kill & Anti-Void Loop for God Mode
+RunService.Heartbeat:Connect(function()
+    if godModeEnabled and LocalPlayer.Character then
+        local char = LocalPlayer.Character
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+
+        if humanoid then
+            if humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+            if humanoid:GetState() == Enum.HumanoidStateType.Dead then
+                humanoid:ChangeState(Enum.HumanoidStateType.Idle)
+            end
+        end
+
+        -- Prevent falling out of bounds or instant kill triggers
+        if hrp and hrp.Position.Y < -500 then
+            hrp.Velocity = Vector3.new(0, 0, 0)
+            hrp.CFrame = CFrame.new(hrp.Position.X, 100, hrp.Position.Z)
+        end
+    end
+end)
 
 createButton(LocalPlayerScroll, "God Mode: OFF", function(button)
     godModeEnabled = not godModeEnabled
     button.Text = godModeEnabled and "God Mode: ON" or "God Mode: OFF"
     button.TextColor3 = godModeEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
     
-    if godModeEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Health = LocalPlayer.Character:FindFirstChildOfClass("Humanoid").MaxHealth
+    if godModeEnabled and LocalPlayer.Character then
+        setupGodModeCharacter(LocalPlayer.Character)
     end
 end)
 
@@ -665,6 +687,8 @@ end
 
 local function attachToPlayer(targetPlayer)
     unattachFromPlayer()
+
+    if not targetPlayer or not targetPlayer.Character then return end
 
     attachedTarget = targetPlayer
     attachConnection = RunService.Heartbeat:Connect(function()
@@ -694,24 +718,27 @@ local function getRandomEligiblePlayer(teamFilter, accessoryFilter)
     local candidates = {}
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local isCorrectTeam = true
-            if teamFilter then
-                isCorrectTeam = plr.Team and (plr.Team.Name == teamFilter or plr.Team == Teams:FindFirstChild(teamFilter))
-            end
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local isCorrectTeam = true
+                if teamFilter then
+                    isCorrectTeam = plr.Team and (plr.Team.Name == teamFilter or plr.Team == Teams:FindFirstChild(teamFilter))
+                end
 
-            local hasAccessory = true
-            if accessoryFilter then
-                hasAccessory = false
-                for _, child in ipairs(plr.Character:GetChildren()) do
-                    if child:IsA("Accessory") and child.Name == accessoryFilter then
-                        hasAccessory = true
-                        break
+                local hasAccessory = true
+                if accessoryFilter then
+                    hasAccessory = false
+                    for _, child in ipairs(plr.Character:GetChildren()) do
+                        if child:IsA("Accessory") and child.Name == accessoryFilter then
+                            hasAccessory = true
+                            break
+                        end
                     end
                 end
-            end
 
-            if isCorrectTeam and hasAccessory then
-                table.insert(candidates, plr)
+                if isCorrectTeam and hasAccessory then
+                    table.insert(candidates, plr)
+                end
             end
         end
     end
@@ -721,6 +748,33 @@ local function getRandomEligiblePlayer(teamFilter, accessoryFilter)
     end
     return nil
 end
+
+-- Auto-Switching Monitor Loop for Team Attach Mode
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if attachRandomBlueEnabled or attachRandomRedEnabled or attachRandomPlayerEnabled then
+            local filterAcc = attachRandomBlueEnabled and "Vest_blue" or (attachRandomRedEnabled and "Vest_red" or nil)
+            
+            -- Check if current target died, left, or became invalid
+            local targetInvalid = true
+            if attachedTarget and attachedTarget.Parent and attachedTarget.Character then
+                local hum = attachedTarget.Character:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    targetInvalid = false
+                end
+            end
+
+            if targetInvalid then
+                unattachFromPlayer()
+                local newTarget = getRandomEligiblePlayer("Player", filterAcc)
+                if newTarget then
+                    attachToPlayer(newTarget)
+                end
+            end
+        end
+    end
+end)
 
 attachRandomPlayerBtn = createButton(PlayersFrame, "Attach to random Player: OFF", function(button)
     attachRandomPlayerEnabled = not attachRandomPlayerEnabled

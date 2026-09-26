@@ -1144,6 +1144,7 @@ local hideSeekESPEnabled = false
 local detectiveESPEnabled = false
 local guardESPEnabled = false
 local frontmanESPEnabled = false
+local glassESPEnabled = false
 
 createButton(ESPScroll, "Hide and Seek ESP: OFF", function(button)
     hideSeekESPEnabled = not hideSeekESPEnabled
@@ -1167,6 +1168,50 @@ createButton(ESPScroll, "Frontman ESP: OFF", function(button)
     frontmanESPEnabled = not frontmanESPEnabled
     button.Text = frontmanESPEnabled and "Frontman ESP: ON" or "Frontman ESP: OFF"
     button.TextColor3 = frontmanESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+local function updateGlassHighlights()
+    local containers = {}
+    if workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Glass") and workspace.Map.Glass:FindFirstChild("Glasses") then
+        table.insert(containers, workspace.Map.Glass.Glasses)
+    end
+    if ReplicatedStorage:FindFirstChild("Maps") and ReplicatedStorage.Maps:FindFirstChild("Glass") and ReplicatedStorage.Maps.Glass:FindFirstChild("Glasses") then
+        table.insert(containers, ReplicatedStorage.Maps.Glass.Glasses)
+    end
+
+    for _, glassesFolder in ipairs(containers) do
+        for i = 1, 10 do
+            for j = 1, 2 do
+                local glassName = "Pair" .. i .. "/" .. j
+                local glassTile = glassesFolder:FindFirstChild(glassName)
+                if glassTile and glassTile:IsA("BasePart") then
+                    if glassESPEnabled then
+                        local isReal = glassTile.CanCollide
+                        local col = isReal and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                        highlightTarget(glassTile, col, "BMF_Glass_Highlight")
+                    else
+                        removeHighlight(glassTile, "BMF_Glass_Highlight")
+                    end
+                end
+            end
+        end
+    end
+end
+
+createButton(ESPScroll, "Glass ESP: OFF", function(button)
+    glassESPEnabled = not glassESPEnabled
+    button.Text = glassESPEnabled and "Glass ESP: ON" or "Glass ESP: OFF"
+    button.TextColor3 = glassESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    updateGlassHighlights()
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(1.0)
+        if glassESPEnabled then
+            pcall(updateGlassHighlights)
+        end
+    end
 end)
 
 -- Unified 60+ FPS ESP Render Loop
@@ -1317,6 +1362,47 @@ end)
 --------------------------------------------------
 -- TROLLING TAB
 --------------------------------------------------
+
+local noPushCooldownEnabled = false
+
+createButton(TrollingScroll, "No Push Cooldown: OFF", function(button)
+    noPushCooldownEnabled = not noPushCooldownEnabled
+    button.Text = noPushCooldownEnabled and "No Push Cooldown: ON" or "No Push Cooldown: OFF"
+    button.TextColor3 = noPushCooldownEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+-- Fast-Loop to Disable Local Push Tool Cooldown Scripting
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if noPushCooldownEnabled then
+            pcall(function()
+                local containers = {LocalPlayer.Backpack}
+                if LocalPlayer.Character then
+                    table.insert(containers, LocalPlayer.Character)
+                end
+
+                for _, container in ipairs(containers) do
+                    local pushTool = container:FindFirstChild("Push")
+                    if pushTool and pushTool:IsA("Tool") then
+                        for _, child in ipairs(pushTool:GetDescendants()) do
+                            if child:IsA("LocalScript") then
+                                -- Reset client-side cooldown environment variables if accessible
+                                local env = getfenv and getfenv(child)
+                                if env then
+                                    if env.cooldown ~= nil then env.cooldown = 0 end
+                                    if env.db ~= nil then env.db = false end
+                                    if env.enabled ~= nil then env.enabled = true end
+                                    if env.onCooldown ~= nil then env.onCooldown = false end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
 
 createButton(TrollingScroll, "Push Everyone", function()
     task.spawn(function()

@@ -221,7 +221,7 @@ local function getKillRemotes()
         for _, obj in ipairs(container:GetChildren()) do
             if obj:IsA("RemoteEvent") then
                 local name = obj.Name:lower()
-                if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") or name:find("hit") then
+                if name:find("kill") or name:find("damage") or name:find("eliminate") or name:find("die") or name:find("dead") or name:find("hit") or name:find("shot") then
                     table.insert(remotes, obj)
                 end
             elseif obj:IsA("Folder") or obj:IsA("Model") then
@@ -250,6 +250,7 @@ local function eliminatePlayer(targetPlayer)
                 pcall(function() remote:FireServer(targetPlayer) end)
                 pcall(function() remote:FireServer(character) end)
                 pcall(function() remote:FireServer(humanoid, 100) end)
+                pcall(function() remote:FireServer(character, 100) end)
             end
         end
     end)
@@ -590,8 +591,23 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- GOD MODE (REWORKED COMPREHENSIVE SERVER & CLIENT PROTECTOR)
+-- GOD MODE (REWORKED MULTI-LAYER SERVER & CLIENT PROTECTOR)
 local godModeEnabled = false
+
+-- Hook RemoteEvents to block incoming damage/kill signals from server/game modules
+local rawNamecall
+if hookmetamethod then
+    rawNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        if godModeEnabled and (method == "FireServer" or method == "InvokeServer") then
+            local remoteName = self.Name:lower()
+            if remoteName:find("damage") or remoteName:find("kill") or remoteName:find("eliminate") or remoteName:find("die") or remoteName:find("ragdoll") or remoteName:find("hit") or remoteName:find("shot") then
+                return nil
+            end
+        end
+        return rawNamecall(self, ...)
+    end)
+end
 
 local function setupGodModeCharacter(character)
     if not character then return end
@@ -600,30 +616,33 @@ local function setupGodModeCharacter(character)
 
     -- Disable Client Damage Scripts inside Character
     for _, child in ipairs(character:GetChildren()) do
-        if child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall")) then
+        if child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall") or child.Name:lower():find("health")) then
             child.Disabled = true
         end
     end
 
     character.ChildAdded:Connect(function(child)
-        if godModeEnabled and child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall")) then
+        if godModeEnabled and child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall") or child.Name:lower():find("health")) then
             task.defer(function() child.Disabled = true end)
         end
     end)
 
-    -- Force Maximum Health & State Lock
-    humanoid.Health = humanoid.MaxHealth
-    
+    -- Force Maximum Health & Prevent Death States
+    humanoid.MaxHealth = math.huge
+    humanoid.Health = math.huge
+
     humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-        if godModeEnabled and humanoid.Health < humanoid.MaxHealth then
-            humanoid.Health = humanoid.MaxHealth
+        if godModeEnabled then
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
         end
     end)
 
     humanoid.StateChanged:Connect(function(oldState, newState)
-        if godModeEnabled and (newState == Enum.HumanoidStateType.Dead or newState == Enum.HumanoidStateType.Ragdoll) then
+        if godModeEnabled and (newState == Enum.HumanoidStateType.Dead or newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.FallingDown) then
             humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            humanoid.Health = humanoid.MaxHealth
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
         end
     end)
 end
@@ -633,7 +652,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupGodModeCharacter)
 
--- Continuous Anti-Kill & Anti-Void Loop for God Mode
+-- Continuous Anti-Kill, Touch-Zone Neutralization & Anti-Void Loop for God Mode
 RunService.Heartbeat:Connect(function()
     if godModeEnabled and LocalPlayer.Character then
         local char = LocalPlayer.Character
@@ -641,11 +660,17 @@ RunService.Heartbeat:Connect(function()
         local hrp = char:FindFirstChild("HumanoidRootPart")
 
         if humanoid then
-            if humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth
-            end
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
             if humanoid:GetState() == Enum.HumanoidStateType.Dead then
                 humanoid:ChangeState(Enum.HumanoidStateType.Idle)
+            end
+        end
+
+        -- Temporarily disable touch touch-interest on lethal environment parts
+        for _, part in ipairs(workspace:GetDescendants()) do
+            if part:IsA("BasePart") and (part.Name:lower():find("kill") or part.Name:lower():find("touchzone") or part.Name:lower():find("deadzone") or part.Name:lower():find("laser")) then
+                part.CanTouch = false
             end
         end
 
@@ -664,6 +689,12 @@ createButton(LocalPlayerScroll, "God Mode: OFF", function(button)
     
     if godModeEnabled and LocalPlayer.Character then
         setupGodModeCharacter(LocalPlayer.Character)
+    else
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            hum.MaxHealth = 100
+            hum.Health = 100
+        end
     end
 end)
 
@@ -701,7 +732,8 @@ local function attachToPlayer(targetPlayer)
         if char and targetChar and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
             local myHRP = char.HumanoidRootPart
             local targetHRP = targetChar.HumanoidRootPart
-            local backOffset = targetHRP.CFrame * CFrame.new(0, 0, 1.2)
+            -- Increased backward offset from 1.2 to 4.5 studs to reliably bypass Push tool/melee hitboxes
+            local backOffset = targetHRP.CFrame * CFrame.new(0, 0, 4.5)
             myHRP.CFrame = backOffset
         end
     end)
@@ -1371,10 +1403,10 @@ createButton(TrollingScroll, "No Push Cooldown: OFF", function(button)
     button.TextColor3 = noPushCooldownEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
--- Fast-Loop to Disable Local Push Tool Cooldown Scripting
+-- Comprehensive Multi-Layer Bypass for Push Tool Cooldown
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.05)
         if noPushCooldownEnabled then
             pcall(function()
                 local containers = {LocalPlayer.Backpack}
@@ -1385,15 +1417,37 @@ task.spawn(function()
                 for _, container in ipairs(containers) do
                     local pushTool = container:FindFirstChild("Push")
                     if pushTool and pushTool:IsA("Tool") then
+                        -- Method 1: Attribute/Value clearing
+                        if pushTool:FindFirstChild("Cooldown") then pushTool.Cooldown.Value = 0 end
+                        if pushTool:FindFirstChild("CanPush") then pushTool.CanPush.Value = true end
+                        if pushTool:FindFirstChild("Debounce") then pushTool.Debounce.Value = false end
+                        
+                        pushTool:SetAttribute("Cooldown", 0)
+                        pushTool:SetAttribute("CanPush", true)
+                        pushTool:SetAttribute("Debounce", false)
+
+                        -- Method 2: Dynamic Upvalue and Environment Clearing
                         for _, child in ipairs(pushTool:GetDescendants()) do
-                            if child:IsA("LocalScript") then
-                                -- Reset client-side cooldown environment variables if accessible
-                                local env = getfenv and getfenv(child)
+                            if child:IsA("LocalScript") and getscriptclosure then
+                                local scriptClosure = getscriptclosure(child)
+                                if scriptClosure and debug and debug.getupvalues then
+                                    for idx, upval in ipairs(debug.getupvalues(scriptClosure)) do
+                                        if type(upval) == "boolean" then
+                                            pcall(function() debug.setupvalue(scriptClosure, idx, false) end)
+                                        elseif type(upval) == "number" and upval > 0 then
+                                            pcall(function() debug.setupvalue(scriptClosure, idx, 0) end)
+                                        end
+                                    end
+                                end
+                            elseif child:IsA("LocalScript") and getfenv then
+                                local env = getfenv(child)
                                 if env then
                                     if env.cooldown ~= nil then env.cooldown = 0 end
                                     if env.db ~= nil then env.db = false end
+                                    if env.debounce ~= nil then env.debounce = false end
                                     if env.enabled ~= nil then env.enabled = true end
                                     if env.onCooldown ~= nil then env.onCooldown = false end
+                                    if env.canPush ~= nil then env.canPush = true end
                                 end
                             end
                         end

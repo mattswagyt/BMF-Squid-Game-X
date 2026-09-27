@@ -95,11 +95,11 @@ local function createTab(name)
     local btn = Instance.new("TextButton")
     btn.Parent = TabsFrame
     btn.Text = name
-    btn.Size = UDim2.new(0, 80, 1, 0)
+    btn.Size = UDim2.new(0, 70, 1, 0)
     btn.BackgroundColor3 = Color3.fromRGB(60, 0, 0)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 14
+    btn.TextSize = 13
 
     local frame = Instance.new("Frame")
     frame.Parent = ContentFrame
@@ -119,6 +119,7 @@ Tabs["Auto Win"], Tabs["Auto Win_Frame"] = createTab("Auto Win")
 Tabs["ESP"], Tabs["ESP_Frame"] = createTab("ESP")
 Tabs["Protections"], Tabs["Protections_Frame"] = createTab("Protections")
 Tabs["Trolling"], Tabs["Trolling_Frame"] = createTab("Trolling")
+Tabs["Misc"], Tabs["Misc_Frame"] = createTab("Misc")
 Tabs["Scripts"], Tabs["Scripts_Frame"] = createTab("Scripts")
 
 local function setActiveTab(tabName)
@@ -187,6 +188,7 @@ local AutoWinScroll = setupScrollTab(Tabs["Auto Win_Frame"])
 local ESPScroll = setupScrollTab(Tabs["ESP_Frame"])
 local ProtectionsScroll = setupScrollTab(Tabs["Protections_Frame"])
 local TrollingScroll = setupScrollTab(Tabs["Trolling_Frame"])
+local MiscScroll = setupScrollTab(Tabs["Misc_Frame"])
 local ScriptsScroll = setupScrollTab(Tabs["Scripts_Frame"])
 
 local function createButton(parent, name, callback)
@@ -594,7 +596,6 @@ end)
 -- GOD MODE (REWORKED MULTI-LAYER SERVER & CLIENT PROTECTOR)
 local godModeEnabled = false
 
--- Hook RemoteEvents to block incoming damage/kill signals from server/game modules
 local rawNamecall
 if hookmetamethod then
     rawNamecall = hookmetamethod(game, "__namecall", function(self, ...)
@@ -614,7 +615,6 @@ local function setupGodModeCharacter(character)
     local humanoid = character:WaitForChild("Humanoid", 5)
     if not humanoid then return end
 
-    -- Disable Client Damage Scripts inside Character
     for _, child in ipairs(character:GetChildren()) do
         if child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall") or child.Name:lower():find("health")) then
             child.Disabled = true
@@ -627,7 +627,6 @@ local function setupGodModeCharacter(character)
         end
     end)
 
-    -- Force Maximum Health & Prevent Death States
     humanoid.MaxHealth = math.huge
     humanoid.Health = math.huge
 
@@ -652,7 +651,6 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupGodModeCharacter)
 
--- Continuous Anti-Kill, Touch-Zone Neutralization & Anti-Void Loop for God Mode
 RunService.Heartbeat:Connect(function()
     if godModeEnabled and LocalPlayer.Character then
         local char = LocalPlayer.Character
@@ -667,14 +665,12 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        -- Temporarily disable touch touch-interest on lethal environment parts
         for _, part in ipairs(workspace:GetDescendants()) do
             if part:IsA("BasePart") and (part.Name:lower():find("kill") or part.Name:lower():find("touchzone") or part.Name:lower():find("deadzone") or part.Name:lower():find("laser")) then
                 part.CanTouch = false
             end
         end
 
-        -- Prevent falling out of bounds or instant kill triggers
         if hrp and hrp.Position.Y < -500 then
             hrp.Velocity = Vector3.new(0, 0, 0)
             hrp.CFrame = CFrame.new(hrp.Position.X, 100, hrp.Position.Z)
@@ -704,6 +700,94 @@ end)
 
 local PlayersFrame = Tabs["Players_Frame"]
 
+-- Status Information Labels (Lag-Free Monitored Display)
+local StatusFrame = Instance.new("Frame")
+StatusFrame.Parent = PlayersFrame
+StatusFrame.Size = UDim2.new(1, -20, 0, 85)
+StatusFrame.Position = UDim2.new(0, 10, 0, 5)
+StatusFrame.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
+
+local StatusLayout = Instance.new("UIListLayout")
+StatusLayout.Parent = StatusFrame
+StatusLayout.SortOrder = Enum.SortOrder.LayoutOrder
+StatusLayout.Padding = UDim.new(0, 2)
+
+local FrontmanLabel = Instance.new("TextLabel")
+FrontmanLabel.Parent = StatusFrame
+FrontmanLabel.Size = UDim2.new(1, 0, 0, 25)
+FrontmanLabel.BackgroundTransparency = 1
+FrontmanLabel.Text = "Frontman: No Frontman detected!"
+FrontmanLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+FrontmanLabel.Font = Enum.Font.SourceSansBold
+FrontmanLabel.TextSize = 16
+
+local GlassmakerLabel = Instance.new("TextLabel")
+GlassmakerLabel.Parent = StatusFrame
+GlassmakerLabel.Size = UDim2.new(1, 0, 0, 25)
+GlassmakerLabel.BackgroundTransparency = 1
+GlassmakerLabel.Text = "Glassmaker: Either died or not detected!"
+GlassmakerLabel.TextColor3 = Color3.fromRGB(170, 0, 255)
+GlassmakerLabel.Font = Enum.Font.SourceSansBold
+GlassmakerLabel.TextSize = 16
+
+local BabyHolderLabel = Instance.new("TextLabel")
+BabyHolderLabel.Parent = StatusFrame
+BabyHolderLabel.Size = UDim2.new(1, 0, 0, 25)
+BabyHolderLabel.BackgroundTransparency = 1
+BabyHolderLabel.Text = "Baby Holder: No baby holder detected!"
+BabyHolderLabel.TextColor3 = Color3.fromRGB(0, 230, 230)
+BabyHolderLabel.Font = Enum.Font.SourceSansBold
+BabyHolderLabel.TextSize = 16
+
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        
+        -- Frontman Check
+        local foundFrontman = nil
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Character then
+                local char = plr.Character
+                local isGuard = plr.Team and (plr.Team.Name == "Guard" or plr.Team == Teams:FindFirstChild("Guard"))
+                local hasMask = char:FindFirstChild("Armour") and char.Armour:FindFirstChild("MASK")
+                local hasRevolver = char:FindFirstChild("Revolver") or (plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild("Revolver"))
+
+                if isGuard and (hasMask or hasRevolver) then
+                    foundFrontman = plr.Name
+                    break
+                end
+            end
+        end
+        FrontmanLabel.Text = foundFrontman and ("Frontman: " .. foundFrontman) or "Frontman: No Frontman detected!"
+
+        -- Glassmaker Check
+        local foundGlassmaker = nil
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Head") then
+                local glassmakerGui = obj.Head:FindFirstChild("Glassmaker") or (obj:FindFirstChild("dcvhv74") and obj.dcvhv74:FindFirstChild("Head") and obj.dcvhv74.Head:FindFirstChild("Glassmaker"))
+                if glassmakerGui then
+                    foundGlassmaker = obj.Name
+                    break
+                end
+            end
+        end
+        GlassmakerLabel.Text = foundGlassmaker and ("Glassmaker: " .. foundGlassmaker) or "Glassmaker: Either died or not detected!"
+
+        -- Baby Holder Check
+        local foundBabyHolder = nil
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Character then
+                local babyAcc = plr.Character:FindFirstChild("BabyBack")
+                if babyAcc then
+                    foundBabyHolder = plr.Name
+                    break
+                end
+            end
+        end
+        BabyHolderLabel.Text = foundBabyHolder and ("Baby Holder: " .. foundBabyHolder) or "Baby Holder: No baby holder detected!"
+    end
+end)
+
 -- Attach Core System
 local attachedTarget = nil
 local attachConnection = nil
@@ -732,8 +816,8 @@ local function attachToPlayer(targetPlayer)
         if char and targetChar and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
             local myHRP = char.HumanoidRootPart
             local targetHRP = targetChar.HumanoidRootPart
-            -- Increased backward offset from 1.2 to 4.5 studs to reliably bypass Push tool/melee hitboxes
-            local backOffset = targetHRP.CFrame * CFrame.new(0, 0, 4.5)
+            -- Refined offset: 2.5 studs behind (close enough to hit/push/punch them, far enough out of their front attack hitbox)
+            local backOffset = targetHRP.CFrame * CFrame.new(0, 0, 2.5)
             myHRP.CFrame = backOffset
         end
     end)
@@ -788,7 +872,6 @@ task.spawn(function()
         if attachRandomBlueEnabled or attachRandomRedEnabled or attachRandomPlayerEnabled then
             local filterAcc = attachRandomBlueEnabled and "Vest_blue" or (attachRandomRedEnabled and "Vest_red" or nil)
             
-            -- Check if current target died, left, or became invalid
             local targetInvalid = true
             if attachedTarget and attachedTarget.Parent and attachedTarget.Character then
                 local hum = attachedTarget.Character:FindFirstChildOfClass("Humanoid")
@@ -828,7 +911,7 @@ attachRandomPlayerBtn = createButton(PlayersFrame, "Attach to random Player: OFF
     button.Text = attachRandomPlayerEnabled and "Attach to random Player: ON" or "Attach to random Player: OFF"
     button.TextColor3 = attachRandomPlayerEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
-attachRandomPlayerBtn.Position = UDim2.new(0, 10, 0, 10)
+attachRandomPlayerBtn.Position = UDim2.new(0, 10, 0, 95)
 attachRandomPlayerBtn.Size = UDim2.new(1, -20, 0, 30)
 
 attachRandomBlueBtn = createButton(PlayersFrame, "Attach to random Blue Player: OFF", function(button)
@@ -851,7 +934,7 @@ attachRandomBlueBtn = createButton(PlayersFrame, "Attach to random Blue Player: 
     button.Text = attachRandomBlueEnabled and "Attach to random Blue Player: ON" or "Attach to random Blue Player: OFF"
     button.TextColor3 = attachRandomBlueEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
-attachRandomBlueBtn.Position = UDim2.new(0, 10, 0, 45)
+attachRandomBlueBtn.Position = UDim2.new(0, 10, 0, 130)
 attachRandomBlueBtn.Size = UDim2.new(1, -20, 0, 30)
 
 attachRandomRedBtn = createButton(PlayersFrame, "Attach to random Red Player: OFF", function(button)
@@ -874,14 +957,14 @@ attachRandomRedBtn = createButton(PlayersFrame, "Attach to random Red Player: OF
     button.Text = attachRandomRedEnabled and "Attach to random Red Player: ON" or "Attach to random Red Player: OFF"
     button.TextColor3 = attachRandomRedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
-attachRandomRedBtn.Position = UDim2.new(0, 10, 0, 80)
+attachRandomRedBtn.Position = UDim2.new(0, 10, 0, 165)
 attachRandomRedBtn.Size = UDim2.new(1, -20, 0, 30)
 
 -- Scrolling Player Selection Frame
 local PlayersList = Instance.new("ScrollingFrame")
 PlayersList.Parent = PlayersFrame
-PlayersList.Size = UDim2.new(1, -20, 1, -125)
-PlayersList.Position = UDim2.new(0, 10, 0, 115)
+PlayersList.Size = UDim2.new(1, -20, 1, -210)
+PlayersList.Position = UDim2.new(0, 10, 0, 200)
 PlayersList.CanvasSize = UDim2.new(0, 0, 0, 0)
 PlayersList.ScrollBarThickness = 6
 PlayersList.BackgroundTransparency = 1
@@ -1095,6 +1178,10 @@ createButton(TeleportsScroll, "Lobby", function()
     teleportTo(8038, 89, 3713)
 end)
 
+createButton(TeleportsScroll, "Game Area", function()
+    teleportTo(8038, 93, 3576)
+end)
+
 createButton(TeleportsScroll, "RLGL", function()
     teleportTo(-12571, -790, -2900)
 end)
@@ -1177,6 +1264,7 @@ local detectiveESPEnabled = false
 local guardESPEnabled = false
 local frontmanESPEnabled = false
 local glassESPEnabled = false
+local exitESPEnabled = false
 
 createButton(ESPScroll, "Hide and Seek ESP: OFF", function(button)
     hideSeekESPEnabled = not hideSeekESPEnabled
@@ -1237,12 +1325,35 @@ createButton(ESPScroll, "Glass ESP: OFF", function(button)
     updateGlassHighlights()
 end)
 
+local function updateExitESP()
+    pcall(function()
+        local exitsFolder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("HideNSeek") and workspace.Map.HideNSeek:FindFirstChild("Elements") and workspace.Map.HideNSeek.Elements:FindFirstChild("ExitDoors")
+        if exitsFolder then
+            for _, doorModel in ipairs(exitsFolder:GetChildren()) do
+                if doorModel.Name == "ExitDoor" then
+                    if exitESPEnabled then
+                        highlightTarget(doorModel, Color3.fromRGB(0, 255, 0), "BMF_Exit_Highlight")
+                    else
+                        removeHighlight(doorModel, "BMF_Exit_Highlight")
+                    end
+                end
+            end
+        end
+    end)
+end
+
+createButton(ESPScroll, "Exit ESP (Hide and Seek): OFF", function(button)
+    exitESPEnabled = not exitESPEnabled
+    button.Text = exitESPEnabled and "Exit ESP (Hide and Seek): ON" or "Exit ESP (Hide and Seek): OFF"
+    button.TextColor3 = exitESPEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    updateExitESP()
+end)
+
 task.spawn(function()
     while true do
         task.wait(1.0)
-        if glassESPEnabled then
-            pcall(updateGlassHighlights)
-        end
+        if glassESPEnabled then pcall(updateGlassHighlights) end
+        if exitESPEnabled then pcall(updateExitESP) end
     end
 end)
 
@@ -1403,58 +1514,113 @@ createButton(TrollingScroll, "No Push Cooldown: OFF", function(button)
     button.TextColor3 = noPushCooldownEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
--- Comprehensive Multi-Layer Bypass for Push Tool Cooldown
-task.spawn(function()
-    while true do
-        task.wait(0.05)
-        if noPushCooldownEnabled then
-            pcall(function()
-                local containers = {LocalPlayer.Backpack}
-                if LocalPlayer.Character then
-                    table.insert(containers, LocalPlayer.Character)
-                end
+-- DEFINITIVE CLIENT-SIDE PUSH COOLDOWN BYPASS & DIRECT REMOTE IGNITION
+-- Handles both tool-level LocalScript cooldown variables and client-side tick/task.wait debounces
+local pushCooldownConnection = nil
 
-                for _, container in ipairs(containers) do
-                    local pushTool = container:FindFirstChild("Push")
-                    if pushTool and pushTool:IsA("Tool") then
-                        -- Method 1: Attribute/Value clearing
-                        if pushTool:FindFirstChild("Cooldown") then pushTool.Cooldown.Value = 0 end
-                        if pushTool:FindFirstChild("CanPush") then pushTool.CanPush.Value = true end
-                        if pushTool:FindFirstChild("Debounce") then pushTool.Debounce.Value = false end
-                        
-                        pushTool:SetAttribute("Cooldown", 0)
-                        pushTool:SetAttribute("CanPush", true)
-                        pushTool:SetAttribute("Debounce", false)
+local function hookPushTool(tool)
+    if not tool or tool.Name ~= "Push" then return end
+    
+    -- Method A: Hook Tool Activation directly to bypass client-side LocalScript debounce logic completely
+    tool.Activated:Connect(function()
+        if not noPushCooldownEnabled then return end
+        
+        -- Bypass local debounce/enabled state on tool
+        tool.Enabled = true
+        
+        -- Locate RemoteEvent inside Push tool or global remotes and fire immediately
+        local pushRemote = tool:FindFirstChildWhichIsA("RemoteEvent", true) or (ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Interact"))
+        
+        if pushRemote then
+            -- Target nearest player or mouse target
+            local mouse = LocalPlayer:GetMouse()
+            local targetChar = mouse.Target and mouse.Target.Parent
+            if targetChar and targetChar:FindFirstChild("Humanoid") then
+                pcall(function() pushRemote:FireServer(targetChar) end)
+            end
+        end
+    end)
+end
 
-                        -- Method 2: Dynamic Upvalue and Environment Clearing
-                        for _, child in ipairs(pushTool:GetDescendants()) do
-                            if child:IsA("LocalScript") and getscriptclosure then
-                                local scriptClosure = getscriptclosure(child)
-                                if scriptClosure and debug and debug.getupvalues then
-                                    for idx, upval in ipairs(debug.getupvalues(scriptClosure)) do
-                                        if type(upval) == "boolean" then
-                                            pcall(function() debug.setupvalue(scriptClosure, idx, false) end)
-                                        elseif type(upval) == "number" and upval > 0 then
-                                            pcall(function() debug.setupvalue(scriptClosure, idx, 0) end)
-                                        end
-                                    end
-                                end
-                            elseif child:IsA("LocalScript") and getfenv then
-                                local env = getfenv(child)
+-- Monitor LocalPlayer Backpack and Character for Push tool
+local function monitorPushTools()
+    local containers = {LocalPlayer.Backpack}
+    if LocalPlayer.Character then table.insert(containers, LocalPlayer.Character) end
+    
+    for _, container in ipairs(containers) do
+        for _, child in ipairs(container:GetChildren()) do
+            if child:IsA("Tool") and child.Name == "Push" then
+                hookPushTool(child)
+            end
+        end
+        container.ChildAdded:Connect(function(child)
+            if child:IsA("Tool") and child.Name == "Push" then
+                hookPushTool(child)
+            end
+        end)
+    end
+end
+
+if LocalPlayer.Character then monitorPushTools() end
+LocalPlayer.CharacterAdded:Connect(function() task.wait(0.5) monitorPushTools() end)
+
+-- High-frequency upvalue and variable neutralizer for any running Push LocalScript
+RunService.Stepped:Connect(function()
+    if noPushCooldownEnabled then
+        pcall(function()
+            local containers = {LocalPlayer.Backpack}
+            if LocalPlayer.Character then table.insert(containers, LocalPlayer.Character) end
+
+            for _, container in ipairs(containers) do
+                local pushTool = container:FindFirstChild("Push")
+                if pushTool and pushTool:IsA("Tool") then
+                    pushTool.Enabled = true
+                    
+                    -- Reset standard Attributes & Value objects
+                    for _, child in ipairs(pushTool:GetDescendants()) do
+                        if child:IsA("ValueBase") then
+                            if child.Name:lower():find("cooldown") or child.Name:lower():find("wait") or child.Name:lower():find("time") then
+                                child.Value = 0
+                            elseif child.Name:lower():find("can") or child.Name:lower():find("enable") then
+                                child.Value = true
+                            elseif child.Name:lower():find("db") or child.Name:lower():find("debounce") or child.Name:lower():find("cooldown") then
+                                child.Value = false
+                            end
+                        end
+                    end
+
+                    -- Upvalue and environment override if executor supports debug library
+                    for _, scriptObj in ipairs(pushTool:GetDescendants()) do
+                        if scriptObj:IsA("LocalScript") then
+                            if getfenv then
+                                local env = getfenv(scriptObj)
                                 if env then
                                     if env.cooldown ~= nil then env.cooldown = 0 end
+                                    if env.cd ~= nil then env.cd = 0 end
                                     if env.db ~= nil then env.db = false end
                                     if env.debounce ~= nil then env.debounce = false end
                                     if env.enabled ~= nil then env.enabled = true end
-                                    if env.onCooldown ~= nil then env.onCooldown = false end
                                     if env.canPush ~= nil then env.canPush = true end
+                                    if env.lastPush ~= nil then env.lastPush = 0 end
+                                end
+                            end
+                            if getscriptclosure and debug and debug.getupvalues then
+                                local closure = getscriptclosure(scriptObj)
+                                if closure then
+                                    for idx, upval in ipairs(debug.getupvalues(closure)) do
+                                        if type(upval) == "boolean" then
+                                            pcall(function() debug.setupvalue(closure, idx, false) end)
+                                        elseif type(upval) == "number" and upval > 0 then
+                                            pcall(function() debug.setupvalue(closure, idx, 0) end)
+                                        end
+                                    end
                                 end
                             end
                         end
                     end
                 end
-            end)
-        end
+            end
+        end)
     end
 end)
 
@@ -1473,6 +1639,29 @@ createButton(TrollingScroll, "Kill Everyone", function()
 end)
 
 --------------------------------------------------
+-- MISC TAB
+--------------------------------------------------
+
+createButton(MiscScroll, "Remove Jumprope", function()
+    pcall(function()
+        if workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("JumpRope") and workspace.Map.JumpRope:FindFirstChild("Rope") then
+            workspace.Map.JumpRope.Rope:Destroy()
+        end
+        if ReplicatedStorage:FindFirstChild("Maps") and ReplicatedStorage.Maps:FindFirstChild("JumpRope") and ReplicatedStorage.Maps.JumpRope:FindFirstChild("Rope") then
+            ReplicatedStorage.Maps.JumpRope.Rope:Destroy()
+        end
+    end)
+end)
+
+createButton(MiscScroll, "No Doors (Hide and Seek)", function()
+    pcall(function()
+        if workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("HideNSeek") and workspace.Map.HideNSeek:FindFirstChild("Elements") and workspace.Map.HideNSeek.Elements:FindFirstChild("Doors") then
+            workspace.Map.HideNSeek.Elements.Doors:Destroy()
+        end
+    end)
+end)
+
+--------------------------------------------------
 -- SCRIPTS TAB
 --------------------------------------------------
 
@@ -1480,8 +1669,12 @@ createButton(ScriptsScroll, "Infinite Yield", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
 end)
 
-createButton(ScriptsScroll, "Dex Explorer", function()
+createButton(ScriptsScroll, "MoonDex", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+end)
+
+createButton(ScriptsScroll, "Dex++ (V3)", function()
+    loadstring(game:HttpGet("https://github.com/AZYsGithub/DexPlusPlus/releases/latest/download/out.lua"))()
 end)
 
 createButton(ScriptsScroll, "SimpleSpy OG", function()

@@ -46,7 +46,7 @@ Title.TextSize = 28
 
 local VersionLabel = Instance.new("TextLabel")
 VersionLabel.Parent = MainFrame
-VersionLabel.Text = "V1.2"
+VersionLabel.Text = "V1.2.1"
 VersionLabel.Size = UDim2.new(0, 150, 0, 20)
 VersionLabel.AnchorPoint = Vector2.new(0, 1)
 VersionLabel.Position = UDim2.new(0, 15, 1, -10)
@@ -153,7 +153,7 @@ end)
 
 StarterGui:SetCore("SendNotification",{
     Title="Squid Game X Loaded!",
-    Text="BMF Hub - Squid Games X V1.2 ready.",
+    Text="BMF Hub - Squid Games X V1.2.1 ready.",
     Duration=8
 })
 
@@ -593,7 +593,7 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- GOD MODE (REWORKED MULTI-LAYER SERVER & CLIENT PROTECTOR)
+-- GOD MODE (FULLY REWORKED SERVER & CLIENT PROTECTOR)
 local godModeEnabled = false
 
 local rawNamecall
@@ -610,38 +610,46 @@ if hookmetamethod then
     end)
 end
 
+local function purgeGodModeTargets(character)
+    if not character then return end
+    pcall(function()
+        local diedVal = character:FindFirstChild("Died")
+        if diedVal then diedVal:Destroy() end
+
+        local healthScript = character:FindFirstChild("Health")
+        if healthScript then healthScript:Destroy() end
+    end)
+end
+
 local function setupGodModeCharacter(character)
     if not character then return end
-    local humanoid = character:WaitForChild("Humanoid", 5)
-    if not humanoid then return end
-
-    for _, child in ipairs(character:GetChildren()) do
-        if child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall") or child.Name:lower():find("health")) then
-            child.Disabled = true
-        end
-    end
-
+    
+    purgeGodModeTargets(character)
+    
     character.ChildAdded:Connect(function(child)
-        if godModeEnabled and child:IsA("LocalScript") and (child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") or child.Name:lower():find("fall") or child.Name:lower():find("health")) then
-            task.defer(function() child.Disabled = true end)
+        if godModeEnabled then
+            if child.Name == "Died" or child.Name == "Health" or child.Name:lower():find("damage") or child.Name:lower():find("kill") or child.Name:lower():find("ragdoll") then
+                task.defer(function() child:Destroy() end)
+            end
         end
     end)
 
-    humanoid.MaxHealth = math.huge
-    humanoid.Health = math.huge
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+
+    humanoid.MaxHealth = 100
+    humanoid.Health = 100
 
     humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-        if godModeEnabled then
-            humanoid.MaxHealth = math.huge
-            humanoid.Health = math.huge
+        if godModeEnabled and humanoid.Health < 100 then
+            humanoid.Health = 100
         end
     end)
 
     humanoid.StateChanged:Connect(function(oldState, newState)
         if godModeEnabled and (newState == Enum.HumanoidStateType.Dead or newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.FallingDown) then
             humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            humanoid.MaxHealth = math.huge
-            humanoid.Health = math.huge
+            humanoid.Health = 100
         end
     end)
 end
@@ -651,6 +659,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupGodModeCharacter)
 
+-- Lightweight Event-Driven Heartbeat for God Mode
 RunService.Heartbeat:Connect(function()
     if godModeEnabled and LocalPlayer.Character then
         local char = LocalPlayer.Character
@@ -658,16 +667,9 @@ RunService.Heartbeat:Connect(function()
         local hrp = char:FindFirstChild("HumanoidRootPart")
 
         if humanoid then
-            humanoid.MaxHealth = math.huge
-            humanoid.Health = math.huge
+            if humanoid.Health < 100 then humanoid.Health = 100 end
             if humanoid:GetState() == Enum.HumanoidStateType.Dead then
-                humanoid:ChangeState(Enum.HumanoidStateType.Idle)
-            end
-        end
-
-        for _, part in ipairs(workspace:GetDescendants()) do
-            if part:IsA("BasePart") and (part.Name:lower():find("kill") or part.Name:lower():find("touchzone") or part.Name:lower():find("deadzone") or part.Name:lower():find("laser")) then
-                part.CanTouch = false
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
             end
         end
 
@@ -685,12 +687,6 @@ createButton(LocalPlayerScroll, "God Mode: OFF", function(button)
     
     if godModeEnabled and LocalPlayer.Character then
         setupGodModeCharacter(LocalPlayer.Character)
-    else
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            hum.MaxHealth = 100
-            hum.Health = 100
-        end
     end
 end)
 
@@ -717,7 +713,7 @@ FrontmanLabel.Parent = StatusFrame
 FrontmanLabel.Size = UDim2.new(1, 0, 0, 25)
 FrontmanLabel.BackgroundTransparency = 1
 FrontmanLabel.Text = "Frontman: No Frontman detected!"
-FrontmanLabel.TextColor3 = Color3.fromRGB(180, 180, 180) -- Light shade of gray for optimal contrast
+FrontmanLabel.TextColor3 = Color3.fromRGB(180, 180, 180) -- Light shade of gray
 FrontmanLabel.Font = Enum.Font.SourceSansBold
 FrontmanLabel.TextSize = 16
 
@@ -788,7 +784,7 @@ task.spawn(function()
     end
 end)
 
--- Attach Core System
+-- Attach Core System (With Health Visual State Safeguard)
 local attachedTarget = nil
 local attachConnection = nil
 
@@ -816,8 +812,21 @@ local function attachToPlayer(targetPlayer)
         if char and targetChar and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
             local myHRP = char.HumanoidRootPart
             local targetHRP = targetChar.HumanoidRootPart
+            local myHum = char:FindFirstChildOfClass("Humanoid")
+            
+            -- Keep player offset back 2.5 studs
             local backOffset = targetHRP.CFrame * CFrame.new(0, 0, 2.5)
             myHRP.CFrame = backOffset
+
+            -- Preserve visual health bar and prevent collision death trigger state
+            if myHum then
+                if myHum.Health < myHum.MaxHealth and not godModeEnabled then
+                    myHum.Health = myHum.MaxHealth
+                end
+                if myHum:GetState() == Enum.HumanoidStateType.Dead or myHum:GetState() == Enum.HumanoidStateType.Physics then
+                    myHum:ChangeState(Enum.HumanoidStateType.GettingUp)
+                end
+            end
         end
     end)
 end
@@ -1177,6 +1186,10 @@ createButton(TeleportsScroll, "Lobby", function()
     teleportTo(8038, 89, 3713)
 end)
 
+createButton(TeleportsScroll, "Bathroom", function()
+    teleportTo(8106, 44, 23415)
+end)
+
 createButton(TeleportsScroll, "Game Area", function()
     teleportTo(8038, 93, 3576)
 end)
@@ -1205,6 +1218,10 @@ createButton(TeleportsScroll, "Mingle", function()
     teleportTo(-805, 35, 1570)
 end)
 
+createButton(TeleportsScroll, "Musical Chairs", function()
+    teleportTo(-1245, 210, 68)
+end)
+
 createButton(TeleportsScroll, "Frontman Office", function()
     teleportTo(7961, 112, 3669)
 end)
@@ -1223,6 +1240,18 @@ end)
 
 createButton(TeleportsScroll, "Glass Bridge", function()
     teleportTo(1280, 102, -1089)
+end)
+
+createButton(TeleportsScroll, "Dinner", function()
+    teleportTo(8170, 44, 23504)
+end)
+
+createButton(TeleportsScroll, "Squid Game", function()
+    teleportTo(-5747, 10, 2561)
+end)
+
+createButton(TeleportsScroll, "Sky Squid", function()
+    teleportTo(499, 287, 90)
 end)
 
 --------------------------------------------------
@@ -1252,6 +1281,63 @@ createButton(AutoWinScroll, "Instant Jumprope", function()
         task.wait(3)
         teleportTo(-42, 127, -7)
     end)
+end)
+
+-- MUSICAL CHAIRS (LIMITED-TIME) AUTO WIN
+local musicalChairsEnabled = false
+
+createButton(AutoWinScroll, "Musical Chairs (LIMITED-TIME): OFF", function(button)
+    musicalChairsEnabled = not musicalChairsEnabled
+    button.Text = musicalChairsEnabled and "Musical Chairs (LIMITED-TIME): ON" or "Musical Chairs (LIMITED-TIME): OFF"
+    button.TextColor3 = musicalChairsEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+task.spawn(function()
+    local targetSeat = nil
+    
+    while true do
+        task.wait(0.1)
+        if musicalChairsEnabled then
+            pcall(function()
+                local musicSound = workspace:FindFirstChild("Music") or (workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("MusicalChairs") and workspace.Map.MusicalChairs:FindFirstChild("Music"))
+                local isPlaying = musicSound and musicSound:IsA("Sound") and musicSound.IsPlaying and musicSound.Volume > 0
+
+                if not isPlaying then
+                    -- Music stopped -> find available seat
+                    local mapFolder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Maps")
+                    local musicalChairsMap = mapFolder and mapFolder:FindFirstChild("MusicalChairs")
+                    local chairsFolder = musicalChairsMap and musicalChairsMap:FindFirstChild("Chairs")
+
+                    if chairsFolder then
+                        if not targetSeat or not targetSeat.Parent or targetSeat.Occupant ~= nil and targetSeat.Occupant ~= LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                            -- Select a new unoccupied chair seat
+                            for _, chairModel in ipairs(chairsFolder:GetChildren()) do
+                                local seat = chairModel:FindFirstChildOfClass("Seat") or chairModel:FindFirstChild("Seat")
+                                if seat and (seat.Occupant == nil or seat.Occupant == LocalPlayer.Character:FindFirstChildOfClass("Humanoid")) then
+                                    targetSeat = seat
+                                    break
+                                end
+                            end
+                        end
+
+                        if targetSeat and LocalPlayer.Character then
+                            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                            local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+                            -- If pushed out or not sitting, teleport back into seat
+                            if hum and hrp and (hum.SeatPart ~= targetSeat or (hrp.Position - targetSeat.Position).Magnitude > 4) then
+                                hrp.CFrame = targetSeat.CFrame + Vector3.new(0, 1.5, 0)
+                                targetSeat:Sit(hum)
+                            end
+                        end
+                    end
+                else
+                    -- Music is playing -> round reset
+                    targetSeat = nil
+                end
+            end)
+        end
+    end
 end)
 
 --------------------------------------------------
@@ -1438,6 +1524,7 @@ end)
 --------------------------------------------------
 
 local bypassAnticheatEnabled = false
+local noRagdollEnabled = false
 
 createButton(ProtectionsScroll, "Bypass Anticheat: OFF", function(button)
     bypassAnticheatEnabled = not bypassAnticheatEnabled
@@ -1445,14 +1532,41 @@ createButton(ProtectionsScroll, "Bypass Anticheat: OFF", function(button)
     button.TextColor3 = bypassAnticheatEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
+createButton(ProtectionsScroll, "No Ragdoll: OFF", function(button)
+    noRagdollEnabled = not noRagdollEnabled
+    button.Text = noRagdollEnabled and "No Ragdoll: ON" or "No Ragdoll: OFF"
+    button.TextColor3 = noRagdollEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    
+    if noRagdollEnabled and LocalPlayer.Character then
+        local ragdollScript = LocalPlayer.Character:FindFirstChild("Ragdoll")
+        if ragdollScript then ragdollScript:Destroy() end
+    end
+end)
+
+-- No Ragdoll Character Listener
+local function monitorRagdoll(char)
+    if not char then return end
+    char.ChildAdded:Connect(function(child)
+        if noRagdollEnabled and child.Name == "Ragdoll" then
+            task.defer(function() child:Destroy() end)
+        end
+    end)
+    local existingRagdoll = char:FindFirstChild("Ragdoll")
+    if noRagdollEnabled and existingRagdoll then existingRagdoll:Destroy() end
+end
+
+if LocalPlayer.Character then monitorRagdoll(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(monitorRagdoll)
+
 local function cleanAnticheatRemotes()
     if not bypassAnticheatEnabled then return end
     pcall(function()
         local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Maps")
         if map then
             local rlgl = map:FindFirstChild("RedLightGreenLight") or map:FindFirstChild("RedLightGreenLightLight")
-            if rlgl and rlgl:FindFirstChild("Remotes") then
-                rlgl.Remotes:Destroy()
+            if rlgl then
+                if rlgl:FindFirstChild("Remotes") then rlgl.Remotes:Destroy() end
+                if rlgl:FindFirstChild("SafeZone") then rlgl.SafeZone:Destroy() end
             end
             
             if map:FindFirstChild("Glass") and map.Glass:FindFirstChild("Map") and map.Glass.Map:FindFirstChild("KillSecure") then
@@ -1471,6 +1585,9 @@ local function cleanAnticheatRemotes()
 
         if ReplicatedStorage:FindFirstChild("Maps") then
             local rsMaps = ReplicatedStorage.Maps
+            if rsMaps:FindFirstChild("RedLightGreenLight") and rsMaps.RedLightGreenLight:FindFirstChild("SafeZone") then
+                rsMaps.RedLightGreenLight.SafeZone:Destroy()
+            end
             if rsMaps:FindFirstChild("Glass") and rsMaps.Glass:FindFirstChild("Map") and rsMaps.Glass.Map:FindFirstChild("KillSecure") then
                 rsMaps.Glass.Map.KillSecure:Destroy()
             end
@@ -1513,11 +1630,10 @@ createButton(TrollingScroll, "No Push Cooldown: OFF", function(button)
     button.TextColor3 = noPushCooldownEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
--- REWORKED REAL-TIME TOOL ENABLE & EVENT BINDING FOR NO PUSH COOLDOWN
+-- DIRECT REMOTE OVERRIDE FOR PUSH TOOL COOLDOWN
 local function bindPushToolOverride(tool)
     if not tool or tool.Name ~= "Push" then return end
     
-    -- Ensure Tool remains permanently enabled regardless of internal state transitions
     tool.Enabled = true
     
     if not tool:GetAttribute("BMF_Bound") then
@@ -1528,34 +1644,24 @@ local function bindPushToolOverride(tool)
             
             tool.Enabled = true
             
-            -- Detect active minigame context
-            local mapFolder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Maps")
-            local isRLGL = mapFolder and (mapFolder:FindFirstChild("RedLightGreenLight") or mapFolder:FindFirstChild("RedLightGreenLightLight"))
-            local isMingle = mapFolder and mapFolder:FindFirstChild("Mingle")
-            
-            if isRLGL or isMingle or true then
-                local pushRemote = tool:FindFirstChildWhichIsA("RemoteEvent", true) or (ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Interact"))
+            local pushRemote = tool:FindFirstChildWhichIsA("RemoteEvent", true) or (ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Interact"))
+            if pushRemote then
+                local mouse = LocalPlayer:GetMouse()
+                local targetPart = mouse.Target
+                local targetChar = targetPart and targetPart.Parent
                 
-                if pushRemote then
-                    local mouse = LocalPlayer:GetMouse()
-                    local targetPart = mouse.Target
-                    local targetChar = targetPart and targetPart.Parent
-                    
-                    if targetChar and targetChar:FindFirstChild("Humanoid") and targetChar ~= LocalPlayer.Character then
-                        pcall(function() pushRemote:FireServer(targetChar) end)
-                        pcall(function() pushRemote:FireServer(targetChar:FindFirstChild("HumanoidRootPart")) end)
-                    end
+                if targetChar and targetChar:FindFirstChild("Humanoid") and targetChar ~= LocalPlayer.Character then
+                    pcall(function() pushRemote:FireServer(targetChar) end)
+                    pcall(function() pushRemote:FireServer(targetChar:FindFirstChild("HumanoidRootPart")) end)
                 end
             end
         end)
     end
 end
 
--- Continuous high-frequency monitoring loop
 RunService.Stepped:Connect(function()
     if noPushCooldownEnabled then
         pcall(function()
-            -- Backpack scan
             for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
                 if item:IsA("Tool") and item.Name == "Push" then
                     item.Enabled = true
@@ -1563,7 +1669,6 @@ RunService.Stepped:Connect(function()
                 end
             end
             
-            -- Character/Equipped scan
             if LocalPlayer.Character then
                 for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
                     if item:IsA("Tool") and item.Name == "Push" then
